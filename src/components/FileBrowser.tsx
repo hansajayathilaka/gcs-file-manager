@@ -19,7 +19,7 @@ interface FileBrowserProps {
   loading: boolean;
   onNavigate: (path: string) => void;
   onDelete: (fileName: string, isFolder: boolean) => void;
-  onUpload: (file: File, destinationPath: string) => void;
+  onUpload: (files: File[] | FileList, destinationPath: string) => void;
   onCreateFolder: (folderName: string) => void;
   onDownload: (item: FileTreeItem) => void;
   allFolders: FolderOption[];
@@ -43,7 +43,7 @@ export default function FileBrowser({
   const [newFolderName, setNewFolderName] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
@@ -54,9 +54,9 @@ export default function FileBrowser({
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+    const files = event.target.files;
+    if (files) {
+      setSelectedFiles(Array.from(files));
       setShowUploadDialog(true);
       // Reset the input
       event.target.value = '';
@@ -67,10 +67,79 @@ export default function FileBrowser({
     event.preventDefault();
     setDragOver(false);
     
-    const file = event.dataTransfer.files[0];
-    if (file) {
-      setSelectedFile(file);
+    const items = event.dataTransfer.items;
+    const files = event.dataTransfer.files;
+    
+    if (items) {
+      // Check if any dropped items are directories
+      const hasDirectories = Array.from(items).some(item => item.webkitGetAsEntry()?.isDirectory);
+      
+      if (hasDirectories) {
+        // Handle directory drop
+        console.log('Directory drop detected in FileBrowser');
+        const filesArray: File[] = [];
+        
+        // Process all items to extract files with paths
+        const processItems = async () => {
+          for (const item of Array.from(items)) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+              await traverseFileSystemEntry(entry, '', filesArray);
+            }
+          }
+          
+          setSelectedFiles(filesArray);
+          setShowUploadDialog(true);
+        };
+        
+        processItems();
+      } else {
+        // Regular file drop
+        const filesArray = Array.from(files);
+        setSelectedFiles(filesArray);
+        setShowUploadDialog(true);
+      }
+    } else if (files) {
+      const filesArray = Array.from(files);
+      setSelectedFiles(filesArray);
       setShowUploadDialog(true);
+    }
+  };
+
+  // Helper function to traverse file system entries (same as in UploadDialog)
+  const traverseFileSystemEntry = async (entry: any, path: string, filesArray: File[]) => {
+    if (entry.isFile) {
+      return new Promise<void>((resolve) => {
+        entry.file((file: File) => {
+          // Add the relative path to the file object
+          Object.defineProperty(file, 'webkitRelativePath', {
+            value: path + file.name,
+            writable: false
+          });
+          filesArray.push(file);
+          resolve();
+        });
+      });
+    } else if (entry.isDirectory) {
+      const dirReader = entry.createReader();
+      return new Promise<void>((resolve) => {
+        const readEntries = () => {
+          dirReader.readEntries(async (entries: any[]) => {
+            if (entries.length === 0) {
+              resolve();
+              return;
+            }
+            
+            for (const childEntry of entries) {
+              await traverseFileSystemEntry(childEntry, path + entry.name + '/', filesArray);
+            }
+            
+            // Continue reading if there might be more entries
+            readEntries();
+          });
+        };
+        readEntries();
+      });
     }
   };
 
@@ -150,13 +219,13 @@ export default function FileBrowser({
             
             <button
               onClick={() => {
-                setSelectedFile(null);
+                setSelectedFiles([]);
                 setShowUploadDialog(true);
               }}
               className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               <CloudArrowUpIcon className="h-4 w-4 mr-2" />
-              Upload File
+              Upload Files
             </button>
           </div>
           
@@ -291,20 +360,19 @@ export default function FileBrowser({
         )}
       </div>
 
-      {/* Upload Dialog */}
-      <UploadDialog
-        isOpen={showUploadDialog}
-        onClose={() => {
-          setShowUploadDialog(false);
-          setSelectedFile(null);
-        }}
-        onUpload={onUpload}
-        bucket={bucket}
-        currentPath={currentPath}
-        folders={allFolders}
-        loading={uploading}
-        preSelectedFile={selectedFile}
-      />
+      {/* Upload Dialog */}        <UploadDialog
+          isOpen={showUploadDialog}
+          onClose={() => {
+            setShowUploadDialog(false);
+            setSelectedFiles([]);
+          }}
+          onUpload={onUpload}
+          bucket={bucket}
+          currentPath={currentPath}
+          folders={allFolders}
+          loading={uploading}
+          preSelectedFiles={selectedFiles}
+        />
     </div>
   );
 }

@@ -148,11 +148,13 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   };
 
-  const handleUpload = async (file: File, destinationPath: string = '') => {
+  const handleUpload = async (files: File[] | FileList, destinationPath: string = '') => {
     if (!selectedBucket) return;
 
+    const filesArray = Array.isArray(files) ? files : Array.from(files);
+    
     console.log('Upload starting:', { 
-      fileName: file.name, 
+      fileCount: filesArray.length,
       destinationPath, 
       currentPath,
       destinationPathLength: destinationPath.length 
@@ -161,15 +163,25 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
       formData.append('bucket', selectedBucket);
       formData.append('currentPath', destinationPath);
       
+      // Add each file to the form data with its relative path (if any)
+      filesArray.forEach((file, index) => {
+        formData.append(`file-${index}`, file);
+        
+        // Check if the file has a webkitRelativePath (folder upload)
+        const relativePath = (file as any).webkitRelativePath || '';
+        formData.append(`path-${index}`, relativePath);
+      });
+      
       // Debug the form data
       console.log('FormData contents:', {
-        file: file.name,
+        fileCount: filesArray.length,
         bucket: selectedBucket,
-        currentPath: destinationPath
+        currentPath: destinationPath,
+        firstFile: filesArray[0]?.name,
+        hasRelativePaths: filesArray.some(f => (f as any).webkitRelativePath)
       });
 
       const headers = await getAuthHeaders();
@@ -194,7 +206,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         } else {
           // Show success message and optionally navigate to the upload location
           console.log('Uploaded to different path:', destinationPath);
-          alert(`File uploaded successfully to: ${destinationPath || 'root'}`);
+          alert(`${data.successCount} file${data.successCount !== 1 ? 's' : ''} uploaded successfully to: ${destinationPath || 'root'}`);
           loadFiles(selectedBucket, currentPath); // Still refresh current view in case of .keep files etc.
         }
       } else {
