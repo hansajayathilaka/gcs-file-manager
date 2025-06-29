@@ -22,6 +22,7 @@ interface FileBrowserProps {
   onUpload: (files: File[] | FileList, destinationPath: string) => void;
   onCreateFolder: (folderName: string) => void;
   onDownload: (item: FileTreeItem) => void;
+  onBulkDownload: (items: FileTreeItem[]) => void;
   allFolders: FolderOption[];
   uploading?: boolean;
 }
@@ -36,6 +37,7 @@ export default function FileBrowser({
   onUpload,
   onCreateFolder,
   onDownload,
+  onBulkDownload,
   allFolders,
   uploading = false,
 }: FileBrowserProps) {
@@ -340,6 +342,25 @@ export default function FileBrowser({
     }
   };
 
+  const handleBulkDownload = () => {
+    if (selectedItems.size === 0) return;
+    
+    const itemsToDownload = files.filter(f => selectedItems.has(f.path) && !f.isFolder);
+    
+    if (itemsToDownload.length === 0) {
+      alert('No files selected for download. Folders cannot be downloaded.');
+      return;
+    }
+    
+    if (itemsToDownload.length === 1) {
+      // Single file, use regular download
+      onDownload(itemsToDownload[0]);
+    } else {
+      // Multiple files, use bulk download (zip)
+      onBulkDownload(itemsToDownload);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -392,6 +413,16 @@ export default function FileBrowser({
                 >
                   Clear Selection
                 </button>
+                
+                {selectedItems.size > 0 && (
+                  <button
+                    onClick={handleBulkDownload}
+                    className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                    Download ({selectedItems.size})
+                  </button>
+                )}
                 
                 {selectedItems.size > 0 && (
                   <button

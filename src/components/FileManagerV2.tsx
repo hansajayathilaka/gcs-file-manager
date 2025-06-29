@@ -327,6 +327,60 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   };
 
+  const handleBulkDownload = async (items: FileTreeItem[]) => {
+    if (!selectedBucket || items.length === 0) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      
+      // Prepare the request body with file paths
+      const filePaths = items.map(item => item.storedPath || item.path);
+      
+      const response = await fetch('/api/download-bulk', {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bucket: selectedBucket,
+          files: filePaths,
+        }),
+      });
+
+      if (response.ok) {
+        // Create a blob from the response and trigger download
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        
+        // Get filename from response headers or use default
+        const disposition = response.headers.get('Content-Disposition');
+        let filename = 'download.zip';
+        if (disposition) {
+          const filenameMatch = disposition.match(/filename="([^"]+)"/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        document.body.removeChild(a);
+      } else {
+        const errorData = await response.json();
+        console.error('Bulk download failed:', errorData.error);
+        alert('Bulk download failed: ' + errorData.error);
+      }
+    } catch (error) {
+      console.error('Error downloading files:', error);
+      alert('Bulk download failed');
+    }
+  };
+
   // Generate breadcrumb items
   const getBreadcrumbItems = (): BreadcrumbItem[] => {
     if (!currentPath) return [];
@@ -379,6 +433,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
               onUpload={handleUpload}
               onCreateFolder={handleCreateFolder}
               onDownload={handleDownload}
+              onBulkDownload={handleBulkDownload}
               allFolders={allFolders}
               uploading={uploading}
             />
