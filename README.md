@@ -5,10 +5,14 @@ A Next.js application for managing Google Cloud Storage (GCS) buckets with Fireb
 ## Features
 
 - 🔐 **Firebase Authentication** - Email/password and Google OAuth sign-in
-- 📁 **GCS Bucket Management** - List, upload, and delete files
-- 🔧 **Environment-Based Configuration** - Allowed buckets configured via ALLOWED_BUCKETS environment variable
-- 🚀 **Cloud Run Ready** - Optimized for Google Cloud Run deployment
-- 📱 **Responsive Design** - Modern UI with Tailwind CSS
+- 📁 **GCS Bucket Management** - List, upload, and delete files with folder support
+- 🗂️ **Folder Navigation** - Create folders, navigate through directory structure
+- 🧭 **Breadcrumb Navigation** - Easy navigation with breadcrumb trail
+- � **File Browser UI** - Modern file explorer interface with sidebar and main content
+- �🔧 **Environment-Based Configuration** - Allowed buckets configured via ALLOWED_BUCKETS environment variable
+- � **Drag & Drop** - Drag and drop file uploads
+- �🚀 **Cloud Run Ready** - Optimized for Google Cloud Run deployment
+- 📱 **Responsive Design** - Modern UI with Tailwind CSS and Heroicons
 - 🔒 **Secure** - Server-side authentication verification
 
 ## Quick Start

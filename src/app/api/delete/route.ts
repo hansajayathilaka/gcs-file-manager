@@ -25,6 +25,7 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const bucketName = searchParams.get('bucket');
     const fileName = searchParams.get('file');
+    const isFolder = searchParams.get('isFolder') === 'true';
 
     if (!bucketName || !fileName) {
       return NextResponse.json(
@@ -40,16 +41,44 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete file from GCS
     const bucket = storage.bucket(bucketName);
-    const file = bucket.file(fileName);
 
-    await file.delete();
+    if (isFolder) {
+      // Delete all files in the folder
+      console.log('Deleting folder:', fileName);
+      
+      // Ensure the folder path ends with '/'
+      const folderPath = fileName.endsWith('/') ? fileName : fileName + '/';
+      
+      // Get all files in the folder
+      const [files] = await bucket.getFiles({
+        prefix: folderPath,
+      });
+      
+      console.log(`Found ${files.length} files to delete in folder ${folderPath}`);
+      
+      // Delete all files in the folder
+      const deletePromises = files.map(file => {
+        console.log('Deleting file:', file.name);
+        return file.delete();
+      });
+      
+      await Promise.all(deletePromises);
+      
+      return NextResponse.json({
+        success: true,
+        message: `Folder '${fileName}' and ${files.length} files deleted successfully`,
+      });
+    } else {
+      // Delete single file from GCS
+      const file = bucket.file(fileName);
+      await file.delete();
 
-    return NextResponse.json({
-      success: true,
-      message: 'File deleted successfully',
-    });
+      return NextResponse.json({
+        success: true,
+        message: 'File deleted successfully',
+      });
+    }
   } catch (error) {
     console.error('Error deleting file:', error);
     return NextResponse.json(

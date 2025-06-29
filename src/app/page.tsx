@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAllowedBuckets } from '@/hooks/useAllowedBuckets';
 import LoginForm from '@/components/LoginForm';
-import BucketConfig from '@/components/BucketConfig';
-import FileManager from '@/components/FileManager';
+import FileManagerV2 from '@/components/FileManagerV2';
 
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -36,10 +35,10 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">GCS File Manager</h1>
+              <h1 className="text-2xl font-bold text-gray-900">GCS File Manager</h1>
               <p className="text-sm text-gray-600">Welcome, {user.email}</p>
             </div>
             <button
@@ -53,60 +52,40 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {bucketsError && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-800">
-                    Error loading buckets
-                  </h3>
-                  <div className="mt-2 text-sm text-red-700">
-                    <p>{bucketsError}</p>
-                  </div>
+      <main className="h-[calc(100vh-80px)]">
+        {bucketsError && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4 m-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Error loading buckets
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>{bucketsError}</p>
                 </div>
               </div>
             </div>
-          )}
-          
-          {allowedBuckets.length === 0 && !bucketsError && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6">
-              <div className="flex">
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    No buckets configured
-                  </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <p>Please configure the ALLOWED_BUCKETS environment variable with comma-separated bucket names.</p>
-                  </div>
+          </div>
+        )}
+        
+        {allowedBuckets.length === 0 && !bucketsError && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 m-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  No buckets configured
+                </h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>Please configure the ALLOWED_BUCKETS environment variable with comma-separated bucket names.</p>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {allowedBuckets.length > 0 && (
-            <div className="bg-white shadow rounded-lg p-6 mb-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">Configured Buckets</h2>
-              <div className="space-y-2">
-                {allowedBuckets.map((bucket) => (
-                  <div
-                    key={bucket}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-                  >
-                    <span className="text-sm font-medium text-gray-900">{bucket}</span>
-                    <span className="text-xs text-gray-500">Environment configured</span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-4">
-                Buckets are configured via the ALLOWED_BUCKETS environment variable.
-              </p>
-            </div>
-          )}
-
-          <FileManager allowedBuckets={allowedBuckets} />
-        </div>
+        {allowedBuckets.length > 0 && (
+          <FileManagerV2 allowedBuckets={allowedBuckets} />
+        )}
       </main>
     </div>
   );

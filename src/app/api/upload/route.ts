@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const bucketName = formData.get('bucket') as string;
+    const currentPath = formData.get('currentPath') as string || '';
 
     if (!file) {
       return NextResponse.json(
@@ -47,25 +48,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload file to GCS
+    // Upload file to GCS with path
     const bucket = storage.bucket(bucketName);
     const fileName = `${Date.now()}-${file.name}`;
+    const filePath = currentPath ? `${currentPath}${fileName}` : fileName;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-    const gcsFile = bucket.file(fileName);
+    const gcsFile = bucket.file(filePath);
     
     await gcsFile.save(fileBuffer, {
       metadata: {
         contentType: file.type,
+        metadata: {
+          // Store original filename in custom metadata
+          originalName: file.name,
+          uploadTimestamp: new Date().toISOString(),
+        },
       },
     });
 
-    // Make the file publicly readable (optional)
-    // await gcsFile.makePublic();
-
     return NextResponse.json({
       success: true,
-      fileName,
+      fileName: filePath,
+      originalName: file.name,
       message: 'File uploaded successfully',
     });
   } catch (error) {
