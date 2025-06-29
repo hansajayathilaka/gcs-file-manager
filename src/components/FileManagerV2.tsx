@@ -253,7 +253,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   };
 
-  const handleDelete = async (fileName: string, isFolder: boolean = false) => {
+  const handleDelete = async (fileName: string, isFolder: boolean = false): Promise<void> => {
     const confirmMessage = isFolder 
       ? `Are you sure you want to delete the folder "${fileName}" and all its contents? This action cannot be undone.`
       : `Are you sure you want to delete the file "${fileName}"?`;
@@ -282,11 +282,11 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         loadFiles(selectedBucket, currentPath);
       } else {
         console.error('Delete failed:', data.error);
-        alert('Delete failed: ' + data.error);
+        throw new Error(data.error);
       }
     } catch (error) {
       console.error('Error deleting file:', error);
-      alert('Delete failed');
+      throw error;
     }
   };
 

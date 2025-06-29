@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   FolderIcon, 
   DocumentIcon, 
@@ -18,7 +18,7 @@ interface FileBrowserProps {
   bucket: string;
   loading: boolean;
   onNavigate: (path: string) => void;
-  onDelete: (fileName: string, isFolder: boolean) => void;
+  onDelete: (fileName: string, isFolder: boolean) => Promise<void>;
   onUpload: (files: File[] | FileList, destinationPath: string) => void;
   onCreateFolder: (folderName: string) => void;
   onDownload: (item: FileTreeItem) => void;
@@ -44,6 +44,46 @@ export default function FileBrowser({
   const [dragOver, setDragOver] = useState(false);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [highlightedItem, setHighlightedItem] = useState<string | null>(null);
+
+  // Add keyboard event listener for shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleClearSelection();
+      } else if (event.ctrlKey && event.key === 'a') {
+        event.preventDefault();
+        handleSelectAll();
+      } else if (event.key === 'Delete' && selectedItems.size > 0) {
+        event.preventDefault();
+        handleBulkDelete();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedItems.size]);
+
+  // Add useEffect to handle indeterminate state for header checkbox
+  useEffect(() => {
+    const headerCheckbox = document.querySelector('thead input[type="checkbox"]') as HTMLInputElement;
+    if (headerCheckbox) {
+      const isAllSelected = selectedItems.size === files.length && files.length > 0;
+      const isSomeSelected = selectedItems.size > 0 && selectedItems.size < files.length;
+      
+      headerCheckbox.checked = isAllSelected;
+      headerCheckbox.indeterminate = isSomeSelected;
+    }
+  }, [selectedItems.size, files.length]);
+
+  // Clear selection when navigating to different path
+  useEffect(() => {
+    handleClearSelection();
+  }, [currentPath]);
 
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
@@ -51,6 +91,114 @@ export default function FileBrowser({
       setNewFolderName('');
       setShowCreateFolder(false);
     }
+  };
+
+  const handleCheckboxSelect = (itemPath: string) => {
+    setIsMultiSelectMode(true);
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemPath)) {
+      newSelected.delete(itemPath);
+      // If no items are selected, exit multi-select mode
+      if (newSelected.size === 0) {
+        setIsMultiSelectMode(false);
+      }
+    } else {
+      newSelected.add(itemPath);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleRowClick = (itemPath: string, event: React.MouseEvent) => {
+    if (event.ctrlKey || event.metaKey) {
+      // Ctrl/Cmd click for multi-select
+      setIsMultiSelectMode(true);
+      const newSelected = new Set(selectedItems);
+      if (newSelected.has(itemPath)) {
+        newSelected.delete(itemPath);
+        if (newSelected.size === 0) {
+          setIsMultiSelectMode(false);
+        }
+      } else {
+        newSelected.add(itemPath);
+      }
+      setSelectedItems(newSelected);
+    } else {
+      // Single click just highlights the row
+      setHighlightedItem(itemPath);
+    }
+  };
+
+  const handleRowDoubleClick = (itemPath: string) => {
+    const item = files.find(f => f.path === itemPath);
+    if (item?.isFolder) {
+      onNavigate(item.path);
+    }
+  };
+
+  const handleSelectAll = () => {
+    setSelectedItems(new Set(files.map(f => f.path)));
+    setIsMultiSelectMode(true);
+  };
+
+  const handleHeaderCheckboxSelect = () => {
+    if (selectedItems.size === files.length && files.length > 0) {
+      // All are selected, so deselect all
+      handleClearSelection();
+    } else {
+      // Not all are selected, so select all
+      handleSelectAll();
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedItems(new Set());
+    setIsMultiSelectMode(false);
+    setHighlightedItem(null);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    
+    const itemsToDelete = files.filter(f => selectedItems.has(f.path));
+    const fileCount = itemsToDelete.filter(f => !f.isFolder).length;
+    const folderCount = itemsToDelete.filter(f => f.isFolder).length;
+    
+    let confirmMessage = `Are you sure you want to delete ${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''}?`;
+    if (fileCount > 0 && folderCount > 0) {
+      confirmMessage = `Are you sure you want to delete ${fileCount} file${fileCount > 1 ? 's' : ''} and ${folderCount} folder${folderCount > 1 ? 's' : ''}?`;
+    } else if (fileCount > 0) {
+      confirmMessage = `Are you sure you want to delete ${fileCount} file${fileCount > 1 ? 's' : ''}?`;
+    } else if (folderCount > 0) {
+      confirmMessage = `Are you sure you want to delete ${folderCount} folder${folderCount > 1 ? 's' : ''} and all their contents?`;
+    }
+    confirmMessage += ' This action cannot be undone.';
+    
+    if (!confirm(confirmMessage)) return;
+    
+    // Delete items one by one and track failures
+    const failures: string[] = [];
+    let successCount = 0;
+    
+    for (const item of itemsToDelete) {
+      try {
+        await onDelete(item.name, item.isFolder);
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to delete ${item.name}:`, error);
+        failures.push(item.name);
+      }
+    }
+    
+    // Show summary of results
+    if (failures.length > 0) {
+      alert(`Deleted ${successCount} item${successCount !== 1 ? 's' : ''} successfully. Failed to delete: ${failures.join(', ')}`);
+    } else if (successCount > 0) {
+      // Only show success message if there were no failures and items were actually deleted
+      console.log(`Successfully deleted ${successCount} item${successCount !== 1 ? 's' : ''}`);
+    }
+    
+    // Clear selection after deletion attempt
+    handleClearSelection();
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -227,12 +375,56 @@ export default function FileBrowser({
               <CloudArrowUpIcon className="h-4 w-4 mr-2" />
               Upload Files
             </button>
+
+            {/* Multi-select actions */}
+            {isMultiSelectMode && (
+              <>
+                <button
+                  onClick={handleSelectAll}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Select All
+                </button>
+                
+                <button
+                  onClick={handleClearSelection}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Clear Selection
+                </button>
+                
+                {selectedItems.size > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    <TrashIcon className="h-4 w-4 mr-2" />
+                    Delete ({selectedItems.size})
+                  </button>
+                )}
+              </>
+            )}
           </div>
           
           <div className="text-sm text-gray-500">
-            {files.length} {files.length === 1 ? 'item' : 'items'}
+            {selectedItems.size > 0 ? (
+              <span className="text-indigo-600">
+                {selectedItems.size} of {files.length} selected
+              </span>
+            ) : (
+              <span>
+                {files.length} {files.length === 1 ? 'item' : 'items'}
+              </span>
+            )}
           </div>
         </div>
+
+        {/* Multi-select instructions */}
+        {!isMultiSelectMode && files.length > 0 && (
+          <div className="mt-2 text-xs text-gray-500">
+            Tip: Hold Ctrl/⌘ and click to select multiple items
+          </div>
+        )}
         
         {/* Create Folder Modal */}
         {showCreateFolder && (
@@ -285,6 +477,14 @@ export default function FileBrowser({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.size === files.length && files.length > 0}
+                      onChange={handleHeaderCheckboxSelect}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Name
                   </th>
@@ -301,20 +501,62 @@ export default function FileBrowser({
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {files.map((item) => (
-                  <tr key={item.path} className="hover:bg-gray-50">
+                  <tr 
+                    key={item.path} 
+                    className={`transition-colors cursor-pointer ${
+                      selectedItems.has(item.path) ? 'bg-blue-50' : ''
+                    } ${highlightedItem === item.path ? 'bg-gray-100' : ''} hover:bg-gray-50`}
+                    onClick={(e) => {
+                      // Don't trigger row click if clicking on action buttons
+                      const target = e.target as HTMLElement;
+                      if (target.tagName === 'BUTTON' || target.closest('button')) {
+                        return;
+                      }
+                      
+                      // Handle checkbox clicks or Ctrl+click for selection
+                      if ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') || e.ctrlKey || e.metaKey) {
+                        handleRowClick(item.path, e);
+                      } else {
+                        // Single row click just highlights
+                        setHighlightedItem(item.path);
+                      }
+                    }}
+                    onDoubleClick={(e) => {
+                      // Prevent double-click on checkbox/buttons
+                      const target = e.target as HTMLElement;
+                      if ((target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') || target.tagName === 'BUTTON' || target.closest('button')) {
+                        return;
+                      }
+                      
+                      // Double-click on folder navigates
+                      if (item.isFolder) {
+                        handleRowDoubleClick(item.path);
+                      }
+                    }}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.has(item.path)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleCheckboxSelect(item.path);
+                        }}
+                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         {getFileIcon(item)}
-                        <button
-                          onClick={() => item.isFolder ? onNavigate(item.path) : undefined}
+                        <span
                           className={`ml-3 text-sm font-medium ${
                             item.isFolder 
-                              ? 'text-blue-600 hover:text-blue-800 cursor-pointer' 
+                              ? 'text-blue-600' 
                               : 'text-gray-900'
                           }`}
                         >
                           {item.name}
-                        </button>
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -327,20 +569,28 @@ export default function FileBrowser({
                       <div className="flex items-center space-x-2">
                         {!item.isFolder && (
                           <button
-                            onClick={() => onDownload(item)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDownload(item);
+                            }}
                             className="text-indigo-600 hover:text-indigo-800"
                             title="Download"
                           >
                             <ArrowDownTrayIcon className="h-4 w-4" />
                           </button>
                         )}
-                        <button
-                          onClick={() => onDelete(item.name, item.isFolder)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                        {!isMultiSelectMode && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDelete(item.name, item.isFolder);
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
