@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const bucket = searchParams.get('bucket');
     const file = searchParams.get('file');
-    const previewType = searchParams.get('type') || 'content'; // 'content' or 'metadata'
+    const previewType = searchParams.get('type') || 'content'; // 'content', 'metadata', or 'stream'
 
     if (!bucket || !file) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -72,6 +72,20 @@ export async function GET(request: NextRequest) {
     const fileSize = typeof metadata.size === 'string' ? parseInt(metadata.size) : (metadata.size || 0);
     const contentType = metadata.contentType || '';
 
+    // Handle streaming URLs for videos
+    if (previewType === 'stream' && contentType.startsWith('video/')) {
+      // For video streaming, return a streaming endpoint
+      const streamUrl = `/api/stream?bucket=${encodeURIComponent(bucket)}&file=${encodeURIComponent(file)}`;
+      
+      return NextResponse.json({
+        success: true,
+        streamUrl: streamUrl,
+        contentType: contentType,
+        size: fileSize,
+        previewAvailable: true
+      });
+    }
+
     // For text files, limit preview to 1MB
     if (contentType.startsWith('text/') && fileSize <= 1024 * 1024) {
       const [content] = await fileRef.download();
@@ -79,12 +93,13 @@ export async function GET(request: NextRequest) {
         success: true,
         content: content.toString('utf-8'),
         contentType: contentType,
-        size: fileSize
+        size: fileSize,
+        previewAvailable: true
       });
     }
 
-    // For images, videos, and audio, return a download URL instead of signed URL
-    if (contentType.startsWith('image/') || contentType.startsWith('video/') || contentType.startsWith('audio/')) {
+    // For images and audio, return a download URL instead of signed URL
+    if (contentType.startsWith('image/') || contentType.startsWith('audio/')) {
       // Instead of signed URL, return the download API endpoint
       const downloadUrl = `/api/download?bucket=${encodeURIComponent(bucket)}&file=${encodeURIComponent(file)}`;
       
@@ -92,7 +107,22 @@ export async function GET(request: NextRequest) {
         success: true,
         downloadUrl: downloadUrl,
         contentType: contentType,
-        size: fileSize
+        size: fileSize,
+        previewAvailable: true
+      });
+    }
+
+    // For videos (when not requesting stream), also use download URL but warn about size
+    if (contentType.startsWith('video/')) {
+      const downloadUrl = `/api/download?bucket=${encodeURIComponent(bucket)}&file=${encodeURIComponent(file)}`;
+      
+      return NextResponse.json({
+        success: true,
+        downloadUrl: downloadUrl,
+        contentType: contentType,
+        size: fileSize,
+        previewAvailable: true,
+        warning: 'Large video file - consider using stream type for better performance'
       });
     }
 

@@ -33,6 +33,7 @@ export default function FilePreview({
     url?: string;
     content?: string;
     error?: string;
+    previewAvailable?: boolean;
   }>({});
   const [loading, setLoading] = useState(false);
   const [additionalMetadata, setAdditionalMetadata] = useState<any>(null);
@@ -42,9 +43,20 @@ export default function FilePreview({
       loadPreview();
       loadAdditionalMetadata();
     } else {
+      // Clean up any object URLs
+      if (previewData.url && previewData.url.startsWith('blob:')) {
+        URL.revokeObjectURL(previewData.url);
+      }
       setPreviewData({});
       setAdditionalMetadata(null);
     }
+
+    // Cleanup function
+    return () => {
+      if (previewData.url && previewData.url.startsWith('blob:')) {
+        URL.revokeObjectURL(previewData.url);
+      }
+    };
   }, [isOpen, file]);
 
   const loadPreview = async () => {
@@ -65,8 +77,8 @@ export default function FilePreview({
       const token = await currentUser.getIdToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      if (fileType.category === 'image' || fileType.category === 'video' || fileType.category === 'audio') {
-        // For media files, get a download URL for preview
+      if (fileType.category === 'image' || fileType.category === 'audio') {
+        // For images and audio, get a download URL for preview (these are typically smaller)
         const url = new URL('/api/preview', window.location.origin);
         url.searchParams.append('bucket', bucket);
         url.searchParams.append('file', file.storedPath || file.path);
@@ -75,18 +87,41 @@ export default function FilePreview({
         const response = await fetch(url.toString(), { headers });
         const data = await response.json();
         
-        if (data.success && data.downloadUrl) {
-          // Fetch the actual file using the download URL with auth headers
-          const fileResponse = await fetch(data.downloadUrl, { headers });
-          if (fileResponse.ok) {
-            const blob = await fileResponse.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            setPreviewData({ url: objectUrl });
+        if (data.success) {
+          if (data.previewAvailable && data.downloadUrl) {
+            // Fetch the actual file using the download URL with auth headers
+            const fileResponse = await fetch(data.downloadUrl, { headers });
+            if (fileResponse.ok) {
+              const blob = await fileResponse.blob();
+              const objectUrl = URL.createObjectURL(blob);
+              setPreviewData({ url: objectUrl, previewAvailable: true });
+            } else {
+              throw new Error('Failed to fetch file content');
+            }
           } else {
-            throw new Error('Failed to fetch file content');
+            setPreviewData({ previewAvailable: false, error: 'Preview not available for this file type' });
           }
         } else {
           throw new Error('Failed to get download URL');
+        }
+      } else if (fileType.category === 'video') {
+        // For videos, use a streaming URL with auth token
+        try {
+          if (!user) throw new Error('Not authenticated');
+          
+          const currentUser = auth.currentUser;
+          if (!currentUser) throw new Error('Not authenticated');
+          
+          const token = await currentUser.getIdToken();
+          
+          // Create streaming URL with token as query parameter
+          const streamUrl = `/api/stream?bucket=${encodeURIComponent(bucket)}&file=${encodeURIComponent(file.storedPath || file.path)}&token=${encodeURIComponent(token)}`;
+          
+          // Use the streaming URL directly - no blob creation needed
+          setPreviewData({ url: streamUrl, previewAvailable: true });
+        } catch (error) {
+          console.error('Error setting up video stream:', error);
+          setPreviewData({ previewAvailable: false, error: 'Video streaming not available' });
         }
       } else if (fileType.category === 'text' && file.size && file.size < 1024 * 1024) { // Only preview text files < 1MB
         // For text files, fetch content using the preview API
@@ -98,14 +133,30 @@ export default function FilePreview({
         const response = await fetch(url.toString(), { headers });
         const data = await response.json();
         
-        if (data.success && data.content) {
-          setPreviewData({ content: data.content });
+        if (data.success) {
+          if (data.previewAvailable && data.content) {
+            setPreviewData({ content: data.content, previewAvailable: true });
+          } else {
+            setPreviewData({ previewAvailable: false, error: 'Text preview not available' });
+          }
         } else {
           throw new Error('Failed to get text content');
         }
       } else {
-        // For other files, just show metadata
-        setPreviewData({});
+        // For other files, check if preview is available via API
+        const url = new URL('/api/preview', window.location.origin);
+        url.searchParams.append('bucket', bucket);
+        url.searchParams.append('file', file.storedPath || file.path);
+        url.searchParams.append('type', 'content');
+
+        const response = await fetch(url.toString(), { headers });
+        const data = await response.json();
+        
+        if (data.success) {
+          setPreviewData({ previewAvailable: data.previewAvailable || false });
+        } else {
+          setPreviewData({ previewAvailable: false });
+        }
       }
     } catch (error) {
       console.error('Error loading preview:', error);
@@ -191,12 +242,36 @@ export default function FilePreview({
       );
     }
 
-    if (previewData.error) {
+    if (previewData.error || ('previewAvailable' in previewData && previewData.previewAvailable === false)) {
       return (
         <div className="flex items-center justify-center h-64 text-gray-500">
           <div className="text-center">
             <DocumentIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <p>{previewData.error}</p>
+            <p className="text-sm font-medium">
+              {previewData.error || 'Preview not available'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {'previewAvailable' in previewData && previewData.previewAvailable === false
+                ? 'This file type is not supported for preview' 
+                : 'Unable to load preview content'
+              }
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Check if preview is available or if we have content to show
+    const hasPreviewContent = previewData.url || previewData.content;
+    const isPreviewExplicitlyUnavailable = 'previewAvailable' in previewData && previewData.previewAvailable === false;
+    
+    if (isPreviewExplicitlyUnavailable || (!hasPreviewContent && !loading && previewData.previewAvailable !== true)) {
+      return (
+        <div className="h-full flex items-center justify-center bg-gray-50 rounded">
+          <div className="text-center text-gray-500">
+            <DocumentIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm font-medium">{fileType.description}</p>
+            <p className="text-xs">Preview not supported</p>
           </div>
         </div>
       );
@@ -215,16 +290,36 @@ export default function FilePreview({
     }
 
     if (fileType.category === 'video' && previewData.url) {
+      // Show warning for large video files
+      const isLargeFile = file.size && file.size > 100 * 1024 * 1024; // 100MB
+      
       return (
-        <div className="h-full flex items-center justify-center bg-gray-50 rounded">
-          <video 
-            src={previewData.url} 
-            controls 
-            className="max-w-full max-h-full rounded"
-            preload="metadata"
-          >
-            Your browser does not support the video tag.
-          </video>
+        <div className="h-full flex flex-col bg-gray-50 rounded">
+          {isLargeFile && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-t p-2 text-xs text-yellow-800">
+              <span className="font-medium">Large file:</span> Video is streaming - playback will start as data loads
+            </div>
+          )}
+          <div className="flex-1 flex items-center justify-center">
+            <video 
+              src={previewData.url} 
+              controls 
+              className="max-w-full max-h-full rounded"
+              preload="metadata"
+              crossOrigin="anonymous"
+              style={{ maxHeight: '100%', maxWidth: '100%' }}
+              onLoadStart={() => console.log('Video loading started')}
+              onCanPlay={() => console.log('Video can start playing')}
+              onError={(e) => {
+                console.error('Video error:', e);
+                setPreviewData(prev => ({ ...prev, error: 'Video playback failed' }));
+              }}
+              onWaiting={() => console.log('Video buffering...')}
+              onPlaying={() => console.log('Video playing')}
+            >
+              Your browser does not support the video tag.
+            </video>
+          </div>
         </div>
       );
     }
@@ -360,10 +455,17 @@ export default function FilePreview({
               </div>
             )}
 
-            {previewData.url && (
+            {(previewData.url || previewData.content || previewData.previewAvailable !== undefined) && (
               <div>
-                <label className="block text-xs font-medium text-gray-700">Preview</label>
-                <p className="mt-1 text-xs text-gray-600">Loaded successfully</p>
+                <label className="block text-xs font-medium text-gray-700">Preview Status</label>
+                <p className="mt-1 text-xs text-gray-600">
+                  {'previewAvailable' in previewData && previewData.previewAvailable === false
+                    ? 'Not available for this file type'
+                    : fileType.category === 'video' 
+                      ? 'Streaming enabled' 
+                      : 'Loaded successfully'
+                  }
+                </p>
               </div>
             )}
 
