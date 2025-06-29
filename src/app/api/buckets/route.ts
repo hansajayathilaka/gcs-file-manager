@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const bucketName = searchParams.get('bucket');
     const prefix = searchParams.get('prefix') || '';
+    const getAllFolders = searchParams.get('getAllFolders') === 'true';
 
     if (!bucketName) {
       // Return list of allowed buckets
@@ -44,6 +45,40 @@ export async function GET(request: NextRequest) {
 
     // List files and folders in the specified bucket with prefix
     const bucket = storage.bucket(bucketName);
+    
+    if (getAllFolders) {
+      // Get all files in the bucket to build complete folder structure
+      const [allFiles] = await bucket.getFiles();
+      
+      const folderSet = new Set<string>();
+      
+      allFiles.forEach(file => {
+        const pathParts = file.name.split('/');
+        // Add all parent folders
+        for (let i = 1; i < pathParts.length; i++) {
+          const folderPath = pathParts.slice(0, i).join('/') + '/';
+          folderSet.add(folderPath);
+        }
+      });
+      
+      // Convert to folder items
+      const allFolderItems = Array.from(folderSet)
+        .filter(path => path !== '/')
+        .map(path => ({
+          name: path.split('/').filter(p => p).pop() || '',
+          path: path.replace(/\/$/, ''), // Remove trailing slash for consistency
+          isFolder: true,
+          bucket: bucketName,
+        }));
+      
+      return NextResponse.json({
+        success: true,
+        files: allFolderItems,
+        currentPath: '',
+      });
+    }
+    
+    // Normal file listing with prefix and delimiter
     
     // Get all objects with the specified prefix and delimiter
     const [files, , apiResponse] = await bucket.getFiles({

@@ -6,7 +6,7 @@ import { auth } from '@/lib/firebase';
 import BucketSidebar from '@/components/BucketSidebar';
 import Breadcrumb from '@/components/Breadcrumb';
 import FileBrowser from '@/components/FileBrowser';
-import { FileTreeItem, BreadcrumbItem } from '@/types/fileSystem';
+import { FileTreeItem, BreadcrumbItem, FolderOption } from '@/types/fileSystem';
 
 interface FileManagerV2Props {
   allowedBuckets: string[];
@@ -19,6 +19,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
   const [files, setFiles] = useState<FileTreeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [allFolders, setAllFolders] = useState<FolderOption[]>([]);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (!user) return {};
@@ -60,6 +61,8 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
           size: file.size,
           modified: file.updated,
           contentType: file.contentType,
+          originalName: file.originalName,
+          storedPath: file.storedPath,
         }));
         setFiles(transformedFiles);
         setCurrentPath(prefix);
@@ -75,10 +78,68 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   }, [getAuthHeaders]);
 
+  const loadAllFolders = useCallback(async (bucketName: string) => {
+    try {
+      const headers = await getAuthHeaders();
+      
+      // Get all objects in the bucket to build complete folder structure
+      const url = new URL('/api/buckets', window.location.origin);
+      url.searchParams.append('bucket', bucketName);
+      url.searchParams.append('getAllFolders', 'true');
+      
+      const response = await fetch(url.toString(), { headers });
+      const data = await response.json();
+      
+      if (data.success && data.files) {
+        // Build a complete folder tree
+        const folderSet = new Set<string>();
+        
+        // Add all folders from the response
+        data.files.filter((f: any) => f.isFolder).forEach((folder: any) => {
+          folderSet.add(folder.path);
+        });
+        
+        // Add parent paths for nested folders
+        data.files.forEach((file: any) => {
+          if (!file.isFolder && file.path.includes('/')) {
+            const pathParts = file.path.split('/');
+            for (let i = 1; i < pathParts.length; i++) {
+              const folderPath = pathParts.slice(0, i).join('/') + '/';
+              folderSet.add(folderPath);
+            }
+          }
+        });
+        
+        // Convert to folder options with proper hierarchy
+        const folderOptions: FolderOption[] = Array.from(folderSet)
+          .sort()
+          .map(folderPath => {
+            const cleanPath = folderPath.replace(/\/$/, ''); // Remove trailing slash
+            const pathParts = cleanPath.split('/').filter(p => p);
+            const level = pathParts.length - 1;
+            const name = pathParts[pathParts.length - 1] || 'Root';
+            
+            return {
+              name: name,
+              path: cleanPath,
+              level: level
+            };
+          })
+          .filter(folder => folder.name !== 'Root'); // Remove empty root
+        
+        setAllFolders(folderOptions);
+      }
+    } catch (error) {
+      console.error('Error loading folders:', error);
+      setAllFolders([]);
+    }
+  }, [getAuthHeaders]);
+
   const handleBucketSelect = (bucket: string) => {
     setSelectedBucket(bucket);
     setCurrentPath('');
     loadFiles(bucket, '');
+    loadAllFolders(bucket); // Load folders when a bucket is selected
   };
 
   const handleNavigate = (path: string) => {
@@ -87,15 +148,29 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   };
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File, destinationPath: string = '') => {
     if (!selectedBucket) return;
+
+    console.log('Upload starting:', { 
+      fileName: file.name, 
+      destinationPath, 
+      currentPath,
+      destinationPathLength: destinationPath.length 
+    });
 
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('bucket', selectedBucket);
-      formData.append('currentPath', currentPath);
+      formData.append('currentPath', destinationPath);
+      
+      // Debug the form data
+      console.log('FormData contents:', {
+        file: file.name,
+        bucket: selectedBucket,
+        currentPath: destinationPath
+      });
 
       const headers = await getAuthHeaders();
       const response = await fetch('/api/upload', {
@@ -105,9 +180,23 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       });
 
       const data = await response.json();
+      console.log('Upload response:', data);
+      
       if (data.success) {
-        // Reload files to show the new upload
-        loadFiles(selectedBucket, currentPath);
+        // Reload folders structure since we might have uploaded to a new location
+        loadAllFolders(selectedBucket);
+        
+        // If uploaded to current path, reload current view
+        // If uploaded to different path, show success message
+        if (destinationPath === currentPath) {
+          console.log('Uploaded to current path, reloading current view');
+          loadFiles(selectedBucket, currentPath);
+        } else {
+          // Show success message and optionally navigate to the upload location
+          console.log('Uploaded to different path:', destinationPath);
+          alert(`File uploaded successfully to: ${destinationPath || 'root'}`);
+          loadFiles(selectedBucket, currentPath); // Still refresh current view in case of .keep files etc.
+        }
       } else {
         console.error('Upload failed:', data.error);
         alert('Upload failed: ' + data.error);
@@ -278,6 +367,8 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
               onUpload={handleUpload}
               onCreateFolder={handleCreateFolder}
               onDownload={handleDownload}
+              allFolders={allFolders}
+              uploading={uploading}
             />
 
             {/* Upload Overlay */}

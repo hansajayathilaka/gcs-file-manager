@@ -37,3 +37,15 @@ export interface CreateFolderRequest {
   folderName: string;
   currentPath: string;
 }
+
+export interface UploadFileRequest {
+  file: File;
+  bucket: string;
+  destinationPath: string;
+}
+
+export interface FolderOption {
+  name: string;
+  path: string;
+  level: number;
+}

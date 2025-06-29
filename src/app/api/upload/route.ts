@@ -51,7 +51,23 @@ export async function POST(request: NextRequest) {
     // Upload file to GCS with path
     const bucket = storage.bucket(bucketName);
     const fileName = `${Date.now()}-${file.name}`;
-    const filePath = currentPath ? `${currentPath}${fileName}` : fileName;
+    
+    // Construct file path correctly
+    let filePath: string;
+    if (currentPath && currentPath.length > 0) {
+      // Ensure currentPath ends with '/' if it doesn't already
+      const normalizedCurrentPath = currentPath.endsWith('/') ? currentPath : currentPath + '/';
+      filePath = `${normalizedCurrentPath}${fileName}`;
+    } else {
+      filePath = fileName;
+    }
+    
+    console.log('Upload API - File path construction:', {
+      currentPath,
+      fileName,
+      finalFilePath: filePath
+    });
+    
     const fileBuffer = Buffer.from(await file.arrayBuffer());
 
     const gcsFile = bucket.file(filePath);
