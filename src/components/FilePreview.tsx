@@ -244,13 +244,13 @@ export default function FilePreview({
 
     if (previewData.error || ('previewAvailable' in previewData && previewData.previewAvailable === false)) {
       return (
-        <div className="flex items-center justify-center h-64 text-gray-500">
+        <div className="flex items-center justify-center h-64 text-gray-600">
           <div className="text-center">
-            <DocumentIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-sm font-medium">
+            <DocumentIcon className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+            <p className="text-sm font-medium text-gray-800">
               {previewData.error || 'Preview not available'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               {'previewAvailable' in previewData && previewData.previewAvailable === false
                 ? 'This file type is not supported for preview' 
                 : 'Unable to load preview content'
@@ -268,10 +268,10 @@ export default function FilePreview({
     if (isPreviewExplicitlyUnavailable || (!hasPreviewContent && !loading && previewData.previewAvailable !== true)) {
       return (
         <div className="h-full flex items-center justify-center bg-gray-50 rounded">
-          <div className="text-center text-gray-500">
-            <DocumentIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-            <p className="text-sm font-medium">{fileType.description}</p>
-            <p className="text-xs">Preview not supported</p>
+          <div className="text-center text-gray-600">
+            <DocumentIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+            <p className="text-sm font-medium text-gray-800">{fileType.description}</p>
+            <p className="text-xs text-gray-600">Preview not supported</p>
           </div>
         </div>
       );
@@ -328,8 +328,8 @@ export default function FilePreview({
       return (
         <div className="h-full flex flex-col items-center justify-center bg-gray-50 rounded p-4">
           <div className="text-center mb-3">
-            <PlayIcon className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-            <p className="text-sm text-gray-600 truncate">{file.name}</p>
+            <PlayIcon className="h-12 w-12 mx-auto text-gray-500 mb-2" />
+            <p className="text-sm text-gray-800 truncate font-medium">{file.name}</p>
           </div>
           <audio 
             src={previewData.url} 
@@ -345,8 +345,8 @@ export default function FilePreview({
 
     if (fileType.category === 'text' && previewData.content) {
       return (
-        <div className="h-full bg-gray-50 rounded p-3 overflow-hidden">
-          <pre className="text-xs overflow-auto h-full whitespace-pre-wrap font-mono">
+        <div className="h-full bg-white border border-gray-300 rounded p-4 overflow-hidden">
+          <pre className="text-sm text-gray-800 overflow-auto h-full whitespace-pre-wrap font-mono leading-relaxed bg-gray-50 p-3 rounded border">
             {previewData.content}
           </pre>
         </div>
@@ -356,10 +356,10 @@ export default function FilePreview({
     // Default preview for unsupported files
     return (
       <div className="h-full flex items-center justify-center bg-gray-50 rounded">
-        <div className="text-center text-gray-500">
-          <DocumentIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-          <p className="text-sm font-medium">{fileType.description}</p>
-          <p className="text-xs">Preview not available</p>
+        <div className="text-center text-gray-600">
+          <DocumentIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+          <p className="text-sm font-medium text-gray-800">{fileType.description}</p>
+          <p className="text-xs text-gray-600">Preview not available</p>
         </div>
       </div>
     );
@@ -411,54 +411,54 @@ export default function FilePreview({
           
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-gray-700">Name</label>
-              <p className="mt-1 text-xs text-gray-900 break-all">{file.originalName || file.name}</p>
+              <label className="block text-xs font-semibold text-gray-800">Name</label>
+              <p className="mt-1 text-sm text-gray-800 break-all font-medium">{file.originalName || file.name}</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-700">Type</label>
-              <p className="mt-1 text-xs text-gray-900">{fileType.type.toUpperCase()} {fileType.description}</p>
+              <label className="block text-xs font-semibold text-gray-800">Type</label>
+              <p className="mt-1 text-sm text-gray-800 font-medium">{fileType.type.toUpperCase()} {fileType.description}</p>
             </div>
 
             {file.size && (
               <div>
-                <label className="block text-xs font-medium text-gray-700">Size</label>
-                <p className="mt-1 text-xs text-gray-900">{formatFileSize(file.size)}</p>
+                <label className="block text-xs font-semibold text-gray-800">Size</label>
+                <p className="mt-1 text-sm text-gray-800 font-medium">{formatFileSize(file.size)}</p>
               </div>
             )}
 
             {file.modified && (
               <div>
-                <label className="block text-xs font-medium text-gray-700">Last Modified</label>
-                <p className="mt-1 text-xs text-gray-900">{formatDate(file.modified)}</p>
+                <label className="block text-xs font-semibold text-gray-800">Last Modified</label>
+                <p className="mt-1 text-sm text-gray-800 font-medium">{formatDate(file.modified)}</p>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-gray-700">Location</label>
-              <p className="mt-1 text-xs text-gray-900 break-all">
+              <label className="block text-xs font-semibold text-gray-800">Location</label>
+              <p className="mt-1 text-sm text-gray-800 break-all font-medium">
                 {bucket}/{file.path}
               </p>
             </div>
 
             {file.storedPath && file.storedPath !== file.path && (
               <div>
-                <label className="block text-xs font-medium text-gray-700">Stored As</label>
-                <p className="mt-1 text-xs text-gray-600 break-all">{file.storedPath}</p>
+                <label className="block text-xs font-semibold text-gray-800">Stored As</label>
+                <p className="mt-1 text-sm text-gray-700 break-all">{file.storedPath}</p>
               </div>
             )}
 
             {file.contentType && (
               <div>
-                <label className="block text-xs font-medium text-gray-700">MIME Type</label>
-                <p className="mt-1 text-xs text-gray-900">{file.contentType}</p>
+                <label className="block text-xs font-semibold text-gray-800">MIME Type</label>
+                <p className="mt-1 text-sm text-gray-800 font-medium">{file.contentType}</p>
               </div>
             )}
 
             {(previewData.url || previewData.content || previewData.previewAvailable !== undefined) && (
               <div>
-                <label className="block text-xs font-medium text-gray-700">Preview Status</label>
-                <p className="mt-1 text-xs text-gray-600">
+                <label className="block text-xs font-semibold text-gray-800">Preview Status</label>
+                <p className="mt-1 text-sm text-gray-700 font-medium">
                   {'previewAvailable' in previewData && previewData.previewAvailable === false
                     ? 'Not available for this file type'
                     : fileType.category === 'video' 
@@ -474,33 +474,33 @@ export default function FilePreview({
               <>
                 {additionalMetadata.timeCreated && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">Created</label>
-                    <p className="mt-1 text-xs text-gray-900">{formatDate(additionalMetadata.timeCreated)}</p>
+                    <label className="block text-xs font-semibold text-gray-800">Created</label>
+                    <p className="mt-1 text-sm text-gray-800 font-medium">{formatDate(additionalMetadata.timeCreated)}</p>
                   </div>
                 )}
 
                 {additionalMetadata.md5Hash && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">MD5 Hash</label>
-                    <p className="mt-1 text-xs text-gray-600 font-mono break-all">{additionalMetadata.md5Hash}</p>
+                    <label className="block text-xs font-semibold text-gray-800">MD5 Hash</label>
+                    <p className="mt-1 text-sm text-gray-700 font-mono break-all bg-gray-100 p-2 rounded">{additionalMetadata.md5Hash}</p>
                   </div>
                 )}
 
                 {additionalMetadata.generation && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">Generation</label>
-                    <p className="mt-1 text-xs text-gray-900">{additionalMetadata.generation}</p>
+                    <label className="block text-xs font-semibold text-gray-800">Generation</label>
+                    <p className="mt-1 text-sm text-gray-800 font-medium">{additionalMetadata.generation}</p>
                   </div>
                 )}
 
                 {additionalMetadata.customMetadata && Object.keys(additionalMetadata.customMetadata).length > 0 && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700">Custom Metadata</label>
+                    <label className="block text-xs font-semibold text-gray-800">Custom Metadata</label>
                     <div className="mt-1 space-y-1">
                       {Object.entries(additionalMetadata.customMetadata).map(([key, value]) => (
-                        <div key={key} className="text-xs">
-                          <span className="font-medium text-gray-600">{key}:</span>
-                          <span className="text-gray-900 ml-1">{String(value)}</span>
+                        <div key={key} className="text-sm bg-gray-50 p-2 rounded">
+                          <span className="font-semibold text-gray-800">{key}:</span>
+                          <span className="text-gray-800 ml-1 font-medium">{String(value)}</span>
                         </div>
                       ))}
                     </div>
@@ -514,7 +514,7 @@ export default function FilePreview({
           <div className="mt-4 space-y-2">
             <button
               onClick={() => onDownload(file)}
-              className="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-xs font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="w-full inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
               Download File
