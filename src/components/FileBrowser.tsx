@@ -23,6 +23,7 @@ interface FileBrowserProps {
   onCreateFolder: (folderName: string) => void;
   onDownload: (item: FileTreeItem) => void;
   onBulkDownload: (items: FileTreeItem[]) => void;
+  onFilePreview: (item: FileTreeItem) => void;
   allFolders: FolderOption[];
   uploading?: boolean;
 }
@@ -38,6 +39,7 @@ export default function FileBrowser({
   onCreateFolder,
   onDownload,
   onBulkDownload,
+  onFilePreview,
   allFolders,
   uploading = false,
 }: FileBrowserProps) {
@@ -132,8 +134,12 @@ export default function FileBrowser({
 
   const handleRowDoubleClick = (itemPath: string) => {
     const item = files.find(f => f.path === itemPath);
-    if (item?.isFolder) {
+    if (!item) return;
+    
+    if (item.isFolder) {
       onNavigate(item.path);
+    } else {
+      onFilePreview(item);
     }
   };
 
@@ -559,10 +565,8 @@ export default function FileBrowser({
                         return;
                       }
                       
-                      // Double-click on folder navigates
-                      if (item.isFolder) {
-                        handleRowDoubleClick(item.path);
-                      }
+                      // Double-click handles both folders and files
+                      handleRowDoubleClick(item.path);
                     }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">

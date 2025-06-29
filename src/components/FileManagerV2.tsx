@@ -6,6 +6,7 @@ import { auth } from '@/lib/firebase';
 import BucketSidebar from '@/components/BucketSidebar';
 import Breadcrumb from '@/components/Breadcrumb';
 import FileBrowser from '@/components/FileBrowser';
+import FilePreview from '@/components/FilePreview';
 import { FileTreeItem, BreadcrumbItem, FolderOption } from '@/types/fileSystem';
 
 interface FileManagerV2Props {
@@ -20,6 +21,8 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [allFolders, setAllFolders] = useState<FolderOption[]>([]);
+  const [previewFile, setPreviewFile] = useState<FileTreeItem | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (!user) return {};
@@ -381,6 +384,16 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   };
 
+  const handleFilePreview = (file: FileTreeItem) => {
+    setPreviewFile(file);
+    setIsPreviewOpen(true);
+  };
+
+  const handleClosePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewFile(null);
+  };
+
   // Generate breadcrumb items
   const getBreadcrumbItems = (): BreadcrumbItem[] => {
     if (!currentPath) return [];
@@ -398,9 +411,8 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
 
     return items;
   };
-
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {/* Sidebar */}
       <BucketSidebar
         buckets={allowedBuckets}
@@ -410,7 +422,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {selectedBucket ? (
           <>
             {/* Header with Breadcrumb */}
@@ -434,6 +446,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
               onCreateFolder={handleCreateFolder}
               onDownload={handleDownload}
               onBulkDownload={handleBulkDownload}
+              onFilePreview={handleFilePreview}
               allFolders={allFolders}
               uploading={uploading}
             />
@@ -474,6 +487,19 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
           </div>
         )}
       </div>
+
+      {/* Right Preview Panel */}
+      {isPreviewOpen && (
+        <div className="w-80 min-w-[20rem] max-w-[25rem] flex-shrink-0 border-l border-gray-200 bg-white flex flex-col">
+          <FilePreview
+            isOpen={isPreviewOpen}
+            file={previewFile}
+            bucket={selectedBucket || ''}
+            onClose={handleClosePreview}
+            onDownload={handleDownload}
+          />
+        </div>
+      )}
     </div>
   );
 }

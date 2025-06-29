@@ -52,7 +52,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="h-[calc(100vh-80px)]">
+      <main className="h-[calc(100vh-80px)] overflow-hidden">
         {bucketsError && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4 m-4">
             <div className="flex">
@@ -84,7 +84,9 @@ export default function Home() {
         )}
 
         {allowedBuckets.length > 0 && (
-          <FileManagerV2 allowedBuckets={allowedBuckets} />
+          <div className="h-full">
+            <FileManagerV2 allowedBuckets={allowedBuckets} />
+          </div>
         )}
       </main>
     </div>
