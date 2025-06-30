@@ -31,7 +31,10 @@ resource "google_artifact_registry_repository" "filemanager_repo" {
     application = "filemanager"
   }
 
-  depends_on = [google_project_service.required_apis]
+  depends_on = [
+    google_project_service.required_apis,
+    google_billing_project_info.project_billing
+  ]
 }
 
 # Create Cloud Storage buckets
@@ -219,4 +222,12 @@ resource "google_cloud_run_service_iam_member" "public_access" {
   location = google_cloud_run_service.filemanager.location
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# Enable billing for the project (if billing account is provided)
+resource "google_billing_project_info" "project_billing" {
+  count = var.billing_account_id != "" ? 1 : 0
+  
+  project         = var.project_id
+  billing_account = var.billing_account_id
 }

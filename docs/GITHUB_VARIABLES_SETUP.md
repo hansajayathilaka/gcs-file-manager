@@ -30,8 +30,11 @@ Go to your GitHub repository: `Settings > Secrets and variables > Actions > Vari
 | `TERRAFORM_ENVIRONMENT` | Environment | `prod` | ✅ Yes |
 | `TERRAFORM_ENABLE_WORKLOAD_IDENTITY` | Enable Workload Identity | `true` | ✅ Yes |
 | `TERRAFORM_GITHUB_REPO` | GitHub Repository | `username/repository` | ⚠️ Optional* |
+| `TERRAFORM_BILLING_ACCOUNT_ID` | Billing Account ID | `123456-789ABC-DEF012` | ❌ Optional*** |
 
 *GitHub repository is auto-detected if not provided.
+**Billing account ID is optional and only required if your GCP project doesn't have billing enabled.
+***Billing account ID is optional - you can enable billing manually in Google Cloud Console instead.
 
 ### Fallback Variables
 
@@ -78,6 +81,12 @@ TERRAFORM_STORAGE_BUCKETS='[{"name":"my-unique-docs-bucket","storage_class":"STA
 # Security Configuration (REQUIRED)
 TERRAFORM_ENABLE_WORKLOAD_IDENTITY=true
 TERRAFORM_GITHUB_REPO=myorg/filemanager       # Your actual GitHub repository
+
+# Billing Configuration (OPTIONAL - Manual setup recommended)
+# Only set this if you want Terraform to manage billing for you
+# Otherwise, enable billing manually in Google Cloud Console (recommended)
+# Format: XXXXXX-XXXXXX-XXXXXX (found in Google Cloud Console > Billing)
+# TERRAFORM_BILLING_ACCOUNT_ID=123456-789ABC-DEF012  # Optional: only if using Terraform billing management
 ```
 
 ## Benefits of Using GitHub Variables
@@ -108,6 +117,8 @@ gh variable set TERRAFORM_STORAGE_BUCKETS --body '[{"name":"your-unique-bucket1"
 gh variable set TERRAFORM_ENVIRONMENT --body "prod"  # or dev/staging
 gh variable set TERRAFORM_ENABLE_WORKLOAD_IDENTITY --body "true"
 gh variable set TERRAFORM_GITHUB_REPO --body "yourusername/yourrepo"
+# Optional: Only set if you want Terraform to manage billing (manual setup recommended)
+# gh variable set TERRAFORM_BILLING_ACCOUNT_ID --body "123456-789ABC-DEF012"
 ```
 
 ## Validation and Error Messages
@@ -211,3 +222,60 @@ This helps you verify that the correct settings are being used before applying c
 4. **Apply infrastructure** with action `apply` when ready
 
 The workflow will automatically use your GitHub Variables as defaults, but you can always override them when running the workflow manually if needed.
+
+## 🏦 Billing Account Setup
+
+Google Cloud requires billing to be enabled to use most services (like Artifact Registry, Cloud Run, etc.). You have two options:
+
+### Option 1: Manual Billing Setup (Recommended)
+
+If you prefer to keep billing configuration separate from Terraform, set up billing manually:
+
+1. **Go to Google Cloud Console**: https://console.cloud.google.com/billing
+2. **Select your project** from the project dropdown
+3. **Check billing status**:
+   - If billing is already enabled, you'll see your billing account
+   - If not enabled, you'll see "This project has no billing account"
+4. **Enable billing** (if needed):
+   - Click "Link a billing account"
+   - **If you have an existing billing account**: Select it from the dropdown
+   - **If you need a new billing account**: 
+     - Click "Create billing account"
+     - Enter account name (e.g., "My Personal Account")
+     - Add payment method (credit card)
+     - Complete the setup
+5. **Link billing account to your project**:
+   - Select your billing account
+   - Click "Set account"
+
+**✅ Recommended**: Use this approach and leave `TERRAFORM_BILLING_ACCOUNT_ID` unset.
+
+### Option 2: Terraform Billing Management
+
+If you want Terraform to manage billing (requires billing account ID):
+
+1. **Find your billing account ID**:
+   - Go to Google Cloud Console > Billing
+   - Copy the billing account ID (format: `XXXXXX-XXXXXX-XXXXXX`)
+2. **Set the GitHub Variable**:
+   ```bash
+   TERRAFORM_BILLING_ACCOUNT_ID=123456-789ABC-DEF012
+   ```
+   Or provide it as manual input when running the workflow.
+
+### Billing Error Troubleshooting
+
+If you see errors like:
+```
+Error 400: Billing account for project is not found. 
+Billing must be enabled for activation of service(s) to proceed.
+```
+
+**Solution**: Follow Option 1 above to enable billing manually, then re-run your Terraform workflow.
+
+### Free Tier Considerations
+
+- **Google Cloud Free Tier**: Includes limited usage of many services
+- **Always Free products**: Some services have generous always-free quotas
+- **Billing required**: Even with free tier, a billing account must be linked
+- **No unexpected charges**: Free tier usage won't generate charges, but billing account is still required for service activation

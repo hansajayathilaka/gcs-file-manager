@@ -113,3 +113,14 @@ variable "enable_workload_identity" {
     error_message = "Workload Identity setting must be specified (true or false). Set TERRAFORM_ENABLE_WORKLOAD_IDENTITY GitHub Variable or provide manual input."
   }
 }
+
+variable "billing_account_id" {
+  description = "The GCP billing account ID (optional - if not provided, billing must be configured manually)"
+  type        = string
+  default     = ""
+  
+  validation {
+    condition = var.billing_account_id == "" || can(regex("^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$", var.billing_account_id))
+    error_message = "Billing account ID must be in format XXXXXX-XXXXXX-XXXXXX or empty string."
+  }
+}

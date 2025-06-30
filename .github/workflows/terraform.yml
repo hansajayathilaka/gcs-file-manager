@@ -38,6 +38,11 @@ on:
         required: false
         default: ''
         type: string
+      billing_account_id:
+        description: 'GCP Billing Account ID (format: XXXXXX-XXXXXX-XXXXXX) - Leave empty if billing is already configured'
+        required: false
+        default: ''
+        type: string
       github_repo:
         description: 'GitHub Repository (owner/repo) for Workload Identity - Leave empty to auto-detect'
         required: false
@@ -69,6 +74,7 @@ env:
   TF_VAR_artifact_registry_repo: ${{ github.event.inputs.artifact_registry_repo || vars.TERRAFORM_ARTIFACT_REGISTRY_REPO || vars.ARTIFACT_REGISTRY_REPO }}
   TF_VAR_environment: ${{ github.event.inputs.environment || vars.TERRAFORM_ENVIRONMENT || 'prod' }}
   TF_VAR_enable_workload_identity: ${{ github.event.inputs.enable_workload_identity || vars.TERRAFORM_ENABLE_WORKLOAD_IDENTITY || 'true' }}
+  TF_VAR_billing_account_id: ${{ github.event.inputs.billing_account_id || vars.TERRAFORM_BILLING_ACCOUNT_ID || '' }}
   TF_VAR_github_repo: ${{ github.event.inputs.github_repo || vars.TERRAFORM_GITHUB_REPO || github.repository }}
 
 permissions:
@@ -281,6 +287,7 @@ jobs:
         echo "| Service Name | ${{ env.TF_VAR_service_name }} | ${{ github.event.inputs.service_name && 'Manual Input' || vars.TERRAFORM_SERVICE_NAME && 'GitHub Variable (TERRAFORM_SERVICE_NAME)' || vars.CLOUD_RUN_SERVICE_NAME && 'GitHub Variable (CLOUD_RUN_SERVICE_NAME)' || 'Default' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Artifact Registry | ${{ env.TF_VAR_artifact_registry_repo }} | ${{ github.event.inputs.artifact_registry_repo && 'Manual Input' || vars.TERRAFORM_ARTIFACT_REGISTRY_REPO && 'GitHub Variable (TERRAFORM_ARTIFACT_REGISTRY_REPO)' || vars.ARTIFACT_REGISTRY_REPO && 'GitHub Variable (ARTIFACT_REGISTRY_REPO)' || 'Default' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Environment | ${{ env.TF_VAR_environment }} | ${{ github.event.inputs.environment && 'Manual Input' || vars.TERRAFORM_ENVIRONMENT && 'GitHub Variable (TERRAFORM_ENVIRONMENT)' || 'Default' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Billing Account | ${{ env.TF_VAR_billing_account_id && env.TF_VAR_billing_account_id || 'Not configured (manual setup required)' }} | ${{ github.event.inputs.billing_account_id && 'Manual Input' || vars.TERRAFORM_BILLING_ACCOUNT_ID && 'GitHub Variable (TERRAFORM_BILLING_ACCOUNT_ID)' || 'Manual Setup' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| Workload Identity | ${{ env.TF_VAR_enable_workload_identity }} | ${{ github.event.inputs.enable_workload_identity && 'Manual Input' || vars.TERRAFORM_ENABLE_WORKLOAD_IDENTITY && 'GitHub Variable (TERRAFORM_ENABLE_WORKLOAD_IDENTITY)' || 'Default' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| GitHub Repository | ${{ env.TF_VAR_github_repo }} | ${{ github.event.inputs.github_repo && 'Manual Input' || vars.TERRAFORM_GITHUB_REPO && 'GitHub Variable (TERRAFORM_GITHUB_REPO)' || 'Auto-detected' }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -333,11 +340,18 @@ jobs:
           echo "- Missing required variables or configuration"
           echo "- Invalid resource configurations"
           echo "- Insufficient permissions"
+          echo "- Billing not enabled for the project"
           echo ""
           echo "Please check the error messages above and verify:"
           echo "1. All required GitHub Variables are set correctly"
           echo "2. Authentication (Workload Identity or Service Account Key) is working"
           echo "3. The service account has necessary permissions"
+          echo "4. **Billing is enabled** for your GCP project"
+          echo ""
+          echo "🏦 **Billing Error?** If you see 'Billing account not found':"
+          echo "   - Go to Google Cloud Console > Billing"
+          echo "   - Link a billing account to your project: ${{ env.TF_VAR_project_id }}"
+          echo "   - Or provide billing_account_id when running this workflow"
           exit 1
         elif [ $PLAN_EXIT_CODE -eq 2 ]; then
           echo "📝 Plan generated successfully with changes to apply"
