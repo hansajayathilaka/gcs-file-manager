@@ -318,8 +318,10 @@ jobs:
       working-directory: terraform
       run: |
         echo "📋 Generating Terraform plan..."
+        set +e  # Disable exit on error to capture exit code
         terraform plan -detailed-exitcode -out=tfplan
         PLAN_EXIT_CODE=$?
+        set -e  # Re-enable exit on error
         
         echo "Plan completed with exit code: $PLAN_EXIT_CODE"
         
