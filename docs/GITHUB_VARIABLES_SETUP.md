@@ -151,7 +151,7 @@ When configuring `TERRAFORM_STORAGE_BUCKETS`, choose the appropriate storage cla
 
 ### Configuration Examples
 
-**Mixed Storage Classes** (recommended):
+**For GitHub Variables (strict JSON required)**:
 ```json
 [
   {"name":"myapp-active-data","storage_class":"STANDARD"},
@@ -160,12 +160,13 @@ When configuring `TERRAFORM_STORAGE_BUCKETS`, choose the appropriate storage cla
 ]
 ```
 
-**Single Storage Class**:
+**For GitHub Actions Workflow Input (flexible format)**:
 ```json
-[
-  {"name":"myapp-bucket-1","storage_class":"STANDARD"},
-  {"name":"myapp-bucket-2","storage_class":"STANDARD"}
-]
+[{"name":"bucket1","storage_class":"STANDARD"}]
+```
+or
+```json
+[{name:bucket1,storage_class:STANDARD}]
 ```
 
 **Custom Location** (optional):
@@ -176,6 +177,22 @@ When configuring `TERRAFORM_STORAGE_BUCKETS`, choose the appropriate storage cla
 ```
 
 **Note**: If no `location` is specified, buckets will use the zone (if configured) or region from your Terraform configuration.
+
+### GitHub Actions Input Format
+
+When manually running the Terraform workflow and providing bucket configuration as input, GitHub Actions has some JSON parsing quirks. Both formats work:
+
+**Standard JSON** (recommended for GitHub Variables):
+```json
+[{"name":"bucket1","storage_class":"STANDARD"}]
+```
+
+**Simplified format** (works in GitHub Actions workflow input):
+```json
+[{name:bucket1,storage_class:STANDARD}]
+```
+
+The workflow automatically fixes the quotes for GitHub Actions inputs.
 
 ## Configuration Summary
 

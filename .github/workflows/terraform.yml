@@ -34,7 +34,7 @@ on:
         default: ''
         type: string
       storage_buckets:
-        description: 'Storage Buckets (JSON format) - Example: [{"name":"bucket1","storage_class":"STANDARD"},{"name":"bucket2","storage_class":"NEARLINE"}]'
+        description: 'Storage Buckets (JSON format) - Example: [{"name":"bucket1","storage_class":"STANDARD"}] or [{name:bucket1,storage_class:STANDARD}]'
         required: false
         default: ''
         type: string
@@ -214,19 +214,29 @@ jobs:
         
         echo "Raw buckets input: $BUCKETS_INPUT"
         
+        # Fix GitHub Actions JSON parsing issue by re-quoting values
+        # GitHub Actions removes quotes from JSON values, so we need to restore them
+        BUCKETS_FIXED=$(echo "$BUCKETS_INPUT" | sed 's/name:\([^,}]*\)/name:"\1"/g' | sed 's/storage_class:\([^,}]*\)/storage_class:"\1"/g' | sed 's/location:\([^,}]*\)/location:"\1"/g')
+        
+        echo "Fixed buckets input: $BUCKETS_FIXED"
+        
         # Validate JSON format
-        if ! echo "$BUCKETS_INPUT" | jq empty 2>/dev/null; then
+        if ! echo "$BUCKETS_FIXED" | jq empty 2>/dev/null; then
           echo "❌ ERROR: Invalid JSON format for storage buckets!"
           echo ""
           echo "Expected format:"
           echo '[{"name":"bucket1","storage_class":"STANDARD"},{"name":"bucket2","storage_class":"NEARLINE"}]'
           echo ""
           echo "Storage class options: STANDARD, NEARLINE, COLDLINE, ARCHIVE"
+          echo ""
+          echo "Note: When entering JSON in GitHub Actions workflow input, you can use either:"
+          echo "1. Properly quoted JSON: [{\"name\":\"bucket1\",\"storage_class\":\"STANDARD\"}]"
+          echo "2. Simplified format: [{name:bucket1,storage_class:STANDARD}] (quotes will be added automatically)"
           exit 1
         fi
         
         # Validate required fields in each bucket object
-        if ! echo "$BUCKETS_INPUT" | jq -e 'all(.[]; has("name") and has("storage_class"))' >/dev/null 2>&1; then
+        if ! echo "$BUCKETS_FIXED" | jq -e 'all(.[]; has("name") and has("storage_class"))' >/dev/null 2>&1; then
           echo "❌ ERROR: Each bucket must have 'name' and 'storage_class' fields!"
           echo ""
           echo "Example:"
@@ -234,8 +244,19 @@ jobs:
           exit 1
         fi
         
-        echo "TF_VAR_storage_buckets=$BUCKETS_INPUT" >> $GITHUB_ENV
-        echo "✅ Valid bucket configuration: $BUCKETS_INPUT"
+        # Validate storage classes
+        if ! echo "$BUCKETS_FIXED" | jq -e 'all(.[]; .storage_class | test("^(STANDARD|NEARLINE|COLDLINE|ARCHIVE|MULTI_REGIONAL|REGIONAL)$"))' >/dev/null 2>&1; then
+          echo "❌ ERROR: Invalid storage class detected!"
+          echo ""
+          echo "Valid storage classes: STANDARD, NEARLINE, COLDLINE, ARCHIVE, MULTI_REGIONAL, REGIONAL"
+          echo ""
+          echo "Your buckets:"
+          echo "$BUCKETS_FIXED" | jq -r '.[] | "- \(.name): \(.storage_class)"'
+          exit 1
+        fi
+        
+        echo "TF_VAR_storage_buckets=$BUCKETS_FIXED" >> $GITHUB_ENV
+        echo "✅ Valid bucket configuration: $BUCKETS_FIXED"
 
     - name: Display Configuration Summary
       run: |
