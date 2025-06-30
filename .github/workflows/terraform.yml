@@ -339,9 +339,14 @@ jobs:
           exit 1
         elif [ $PLAN_EXIT_CODE -eq 2 ]; then
           echo "📝 Plan generated successfully with changes to apply"
+          echo "::notice::Terraform plan completed successfully - infrastructure changes detected"
         else
           echo "✅ Plan generated successfully with no changes"
+          echo "::notice::Terraform plan completed successfully - no changes needed"
         fi
+        
+        # Always exit with 0 for GitHub Actions since we handled the exit codes above
+        exit 0
 
     - name: Save Terraform Plan
       if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
