@@ -141,8 +141,30 @@ jobs:
       run: |
         if [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
           echo "method=workload-identity" >> $GITHUB_OUTPUT
-        else
+          echo "🔐 Using Workload Identity authentication"
+        elif [ -n "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" ]; then
           echo "method=service-account" >> $GITHUB_OUTPUT
+          echo "🔑 Using Service Account Key authentication"
+        else
+          echo "❌ ERROR: No authentication method configured!"
+          echo ""
+          echo "To run this workflow, you need ONE of the following:"
+          echo "1. 🔐 **Workload Identity** (recommended):"
+          echo "   - Set WIF_PROVIDER and WIF_SERVICE_ACCOUNT secrets"
+          echo "   - These are created by Terraform on first run"
+          echo ""
+          echo "2. 🔑 **Service Account Key** (for bootstrap):"
+          echo "   - Set GCP_SERVICE_ACCOUNT_KEY secret"
+          echo "   - Use this for initial Terraform run"
+          echo ""
+          echo "📖 **First time setup?** See docs/GITHUB_SETUP.md for bootstrap instructions"
+          echo ""
+          echo "🔄 **Bootstrap Process:**"
+          echo "1. Create temporary service account manually"
+          echo "2. Add GCP_SERVICE_ACCOUNT_KEY secret"
+          echo "3. Run this workflow to create infrastructure"
+          echo "4. Switch to Workload Identity (optional)"
+          exit 1
         fi
 
     # Authenticate to Google Cloud using Workload Identity (if configured)

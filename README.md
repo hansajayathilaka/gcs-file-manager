@@ -1,105 +1,21 @@
 # GCS File Manager
 
-A Next.js application for managing Google Cloud Storage (GCS) buckets with Firebase authentication. This application allows users to view, upload, and delete files in configured GCS buckets.
+A modern Next.js application for managing Google Cloud Storage (GCS) buckets with Firebase authentication. Features a three-panel layout with persistent file preview, streaming video support, and comprehensive file management capabilities.
 
-## Features
+## ✨ Features
 
 - 🔐 **Firebase Authentication** - Email/password and Google OAuth sign-in
-- 📁 **GCS Bucket Management** - List, upload, and delete files with folder support
-- 🗂️ **Folder Navigation** - Create folders, navigate through directory structure
-- 🧭 **Breadcrumb Navigation** - Easy navigation with breadcrumb trail
-- � **File Browser UI** - Modern file explorer interface with sidebar and main content
-- �🔧 **Environment-Based Configuration** - Allowed buckets configured via ALLOWED_BUCKETS environment variable
-- � **Drag & Drop** - Drag and drop file uploads
-- �🚀 **Cloud Run Ready** - Optimized for Google Cloud Run deployment
-- 📱 **Responsive Design** - Modern UI with Tailwind CSS and Heroicons
-- 🔒 **Secure** - Server-side authentication verification
+- 📁 **GCS Bucket Management** - List, upload, delete files with folder support
+- 🗂️ **Three-Panel Layout** - Persistent file preview (not modal popup)
+- 🎥 **Video Streaming** - HTTP range requests for large video files
+- 📱 **Multi-Format Preview** - Images, videos, audio, text files, metadata
+- 🧭 **Folder Navigation** - Create folders, breadcrumb navigation
+- 🚀 **Cloud Run Ready** - Optimized for Google Cloud Run deployment
+- � **Bulk Operations** - Multi-select, bulk download, bulk delete
+- 🎨 **Modern UI** - Responsive design with Tailwind CSS
+- 🔒 **Secure** - Workload Identity and proper authentication
 
-## Quick Start
-
-1. Clone and install dependencies:
-```bash
-npm install
-```
-
-2. Copy environment variables:
-```bash
-cp .env.local.example .env.local
-```
-
-3. Configure your environment variables in `.env.local`:
-   - Firebase configuration
-   - Google Cloud project ID
-   - Allowed GCS buckets
-   - Service account key (base64 encoded)
-
-4. Run the development server:
-```bash
-npm run dev
-```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Environment Variables
-
-### Firebase Configuration
-- `NEXT_PUBLIC_FIREBASE_API_KEY` - Firebase API key
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` - Firebase auth domain
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID` - Firebase project ID
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` - Firebase storage bucket
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` - Firebase messaging sender ID
-- `NEXT_PUBLIC_FIREBASE_APP_ID` - Firebase app ID
-
-### Server-side Configuration
-- `FIREBASE_SERVICE_ACCOUNT_KEY` - Base64 encoded Firebase service account key
-- `GOOGLE_CLOUD_PROJECT_ID` - Google Cloud project ID
-- `ALLOWED_BUCKETS` - Comma-separated list of allowed GCS bucket names
-
-## Documentation
-
-- 📖 **[Deployment Guide](./DEPLOYMENT.md)** - Complete production deployment instructions
-- 🏗️ **[Terraform Setup](./terraform/README.md)** - Infrastructure as Code configuration
-- 🔧 **[GitHub Variables Setup](./docs/GITHUB_VARIABLES_SETUP.md)** - GitHub Actions configuration
-- 🔐 **[GitHub Setup Guide](./docs/GITHUB_SETUP.md)** - Secrets and authentication setup
-
-## Architecture
-
-### Tech Stack
-- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
-- **Authentication**: Firebase Auth (email/password + Google OAuth)
-- **Storage**: Google Cloud Storage with streaming support
-- **Deployment**: Google Cloud Run with GitHub Actions
-- **Infrastructure**: Terraform for automated provisioning
-
-### Key Features
-- 🖥️ **Three-Panel Layout** - Persistent file preview with streaming
-- 📁 **Multi-Format Preview** - Images, videos, audio, text files
-- 🎥 **Video Streaming** - HTTP range requests for large files
-- 📱 **Responsive Design** - Modern UI with proper mobile support
-- 🔒 **Security** - Workload Identity and proper authentication
-- 🚀 **Performance** - Optimized for large files and efficient streaming
-
-## Environment Variables
-
-See `.env.local.example` for complete configuration. Key variables include:
-
-### Firebase Configuration (Public)
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-# ... additional Firebase config
-```
-
-### Server Configuration (Private)
-```env
-FIREBASE_SERVICE_ACCOUNT_KEY=base64-encoded-service-account-json
-GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
-ALLOWED_BUCKETS=bucket1,bucket2,bucket3
-NEXTAUTH_SECRET=your-secret-key
-```
-
-## Quick Local Development
+## 🚀 Quick Start
 
 1. **Clone and install dependencies:**
 ```bash
@@ -119,55 +35,106 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-4. **Open http://localhost:3000**
+4. **Open [http://localhost:3000](http://localhost:3000)**
 
-## Production Deployment
+## 📚 Documentation
 
-For production deployment to Google Cloud Run with full infrastructure automation:
+- � **[Deployment Guide](./DEPLOYMENT.md)** - Complete production deployment workflow
+- 🏗️ **[Terraform Setup](./terraform/README.md)** - Infrastructure as Code configuration
+- 🔧 **[GitHub Variables Setup](./docs/GITHUB_VARIABLES_SETUP.md)** - GitHub Actions configuration
+- 🔐 **[GitHub Setup Guide](./docs/GITHUB_SETUP.md)** - Authentication and secrets setup
+- 📖 **[All Documentation](./docs/README.md)** - Documentation overview and navigation
 
-📖 **[Complete Deployment Guide](./DEPLOYMENT.md)** - Step-by-step production deployment
+## 🏗️ Architecture
+
+### Tech Stack
+- **Framework**: Next.js 15 with TypeScript and App Router
+- **Styling**: Tailwind CSS with responsive design
+- **Authentication**: Firebase Auth (email/password + Google OAuth)
+- **Storage**: Google Cloud Storage with streaming support
+- **Infrastructure**: Terraform for automated GCP provisioning
+- **Deployment**: Google Cloud Run with GitHub Actions CI/CD
+- **Security**: Workload Identity for keyless authentication
+
+### Key Components
+- 🖥️ **FileManagerV2** - Main three-panel layout component
+- 📁 **FileBrowser** - File listing with bulk operations
+- 🎞️ **FilePreview** - Persistent right-panel preview with streaming
+- � **UploadDialog** - Drag-and-drop file/folder uploads
+- � **LoginForm** - Authentication with multiple providers
+
+## ⚙️ Environment Variables
+
+### Firebase Configuration (Public)
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+```
+
+### Server Configuration (Private)
+```env
+FIREBASE_SERVICE_ACCOUNT_KEY=base64-encoded-service-account-json
+GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
+ALLOWED_BUCKETS=bucket1,bucket2,bucket3
+NEXTAUTH_SECRET=your-secret-key
+```
+
+See `.env.local.example` for complete configuration template.
+
+## 🚀 Production Deployment
+
+For production deployment with full infrastructure automation:
+
+**📖 [Complete Deployment Guide](./DEPLOYMENT.md)** - Step-by-step production setup
 
 Key features:
 - 🏗️ **Terraform Infrastructure** - Automated GCP resource provisioning
-- 🚀 **GitHub Actions** - Continuous deployment pipeline
+- 🔄 **GitHub Actions** - Continuous deployment pipeline
 - 🔐 **Workload Identity** - Secure keyless authentication
-- 📋 **Environment Management** - Multi-environment support
-```
-
-## Project Structure
+- 📋 **Multi-Environment** - Support for dev, staging, production
+## � Project Structure
 
 ```
 src/
-├── app/                 # Next.js App Router
-│   ├── api/            # API routes
-│   │   ├── buckets/    # Bucket listing
-│   │   ├── upload/     # File upload
-│   │   └── delete/     # File deletion
-│   ├── layout.tsx      # Root layout
-│   └── page.tsx        # Main dashboard
-├── components/         # React components
-│   ├── LoginForm.tsx   # Authentication form
-│   ├── BucketConfig.tsx # Bucket configuration
-│   └── FileManager.tsx # Main file management interface
-├── contexts/           # React contexts
-│   └── AuthContext.tsx # Authentication context
-├── lib/               # Utility libraries
-│   ├── firebase.ts    # Firebase client config
+├── app/                   # Next.js App Router
+│   ├── api/              # API routes
+│   │   ├── buckets/      # Bucket listing
+│   │   ├── upload/       # File upload
+│   │   ├── delete/       # File deletion
+│   │   ├── stream/       # Video streaming
+│   │   └── preview/      # File preview
+│   ├── layout.tsx        # Root layout with auth context
+│   └── page.tsx          # Main dashboard
+├── components/           # React components
+│   ├── FileManagerV2.tsx # Main three-panel layout
+│   ├── FilePreview.tsx   # Right-panel file preview
+│   ├── FileBrowser.tsx   # File listing and management
+│   ├── UploadDialog.tsx  # File/folder upload modal
+│   └── LoginForm.tsx     # Authentication form
+├── lib/                  # Utility libraries
+│   ├── firebase.ts       # Firebase client config
 │   ├── firebase-admin.ts # Firebase admin config
-│   └── gcs.ts         # Google Cloud Storage client
-└── types/             # TypeScript type definitions
-    └── index.ts       # Shared types
+│   └── gcs.ts            # Google Cloud Storage client
+├── types/               # TypeScript definitions
+│   └── index.ts         # Shared types
+└── hooks/               # Custom React hooks
+    └── useAuth.ts       # Authentication hook
 ```
 
-## Security Considerations
+## 🔒 Security Features
 
 - Firebase service account key is only used server-side
 - All API routes verify Firebase authentication tokens
-- GCS operations are restricted to configured buckets only
+- GCS operations restricted to configured buckets only
 - Input validation on all file operations
 - CORS and security headers configured
+- Workload Identity for keyless GitHub Actions authentication
 
-## Development
+## 🛠️ Development
 
 ```bash
 # Install dependencies
@@ -184,16 +151,24 @@ npm start
 
 # Lint code
 npm run lint
+
+# Validate configuration
+npm run validate
+
+# Access documentation
+npm run docs
 ```
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following the coding standards
+4. Run tests and linting (`npm run lint`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-## License
+## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the LICENSE file for details.

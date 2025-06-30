@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
+    "validate": "npm run lint && npm run type-check && npm run terraform:validate",
+    "docs": "echo 'Documentation available at: docs/README.md' && echo 'GitHub setup: docs/GITHUB_SETUP.md' && echo 'Deployment guide: DEPLOYMENT.md'",
     "terraform:init": "cd terraform && terraform init",
     "terraform:plan": "cd terraform && terraform plan",
     "terraform:apply": "cd terraform && terraform apply",
