@@ -116,6 +116,8 @@ resource "google_service_account" "github_actions" {
       description
     ]
   }
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # IAM roles for the GitHub Actions service account
@@ -131,6 +133,8 @@ resource "google_project_iam_member" "github_actions_roles" {
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.github_actions.email}"
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # Workload Identity Pool (for GitHub Actions without service account keys)
@@ -148,6 +152,8 @@ resource "google_iam_workload_identity_pool" "github_pool" {
       description
     ]
   }
+
+  depends_on = [google_project_service.required_apis]
 }
 
 
@@ -172,6 +178,8 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
   }
 
   attribute_condition = "assertion.repository == '${var.github_repo}'"
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # Allow GitHub Actions to impersonate the service account
@@ -181,6 +189,8 @@ resource "google_service_account_iam_member" "github_actions_workload_identity" 
   service_account_id = google_service_account.github_actions.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_pool[0].name}/attribute.repository/${var.github_repo}"
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # Create a service account key (optional, less secure than Workload Identity)

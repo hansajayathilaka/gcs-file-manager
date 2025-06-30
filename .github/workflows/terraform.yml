@@ -322,6 +322,14 @@ jobs:
         fi
         echo "✅ Terraform configuration is valid"
 
+    - name: Wait for API Propagation
+      if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
+      run: |
+        echo "⏳ Waiting for Google Cloud APIs to fully propagate..."
+        echo "This ensures all required APIs are active before resource creation"
+        sleep 30
+        echo "✅ API propagation wait completed"
+
     - name: Import Existing Resources (if needed)
       if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
       working-directory: terraform
