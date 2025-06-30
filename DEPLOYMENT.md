@@ -325,10 +325,10 @@ npm run terraform:apply
 Edit `terraform/terraform.tfvars`:
 ```hcl
 storage_buckets = [
-  "my-sample-bucket-1",
-  "my-sample-bucket-2", 
-  "another-bucket",
-  "home-00-thamindu-storage",
+  "your-unique-bucket-1",
+  "your-unique-bucket-2", 
+  "another-unique-bucket",
+  "your-project-storage",
   "new-bucket-name"  # Add new buckets here
 ]
 ```

@@ -37,13 +37,13 @@ CLOUD_RUN_SERVICE_NAME                  # From terraform output
 ARTIFACT_REGISTRY_REPO                  # From terraform output
 ALLOWED_BUCKETS                         # From terraform output
 NEXTAUTH_URL                            # From terraform output
-NEXT_PUBLIC_FIREBASE_API_KEY            # AIzaSyC01VvfHfQ4WV-YVZBmJoMOWG74VtSN4Jg
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN        # home-00.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID         # home-00
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET     # home-00.firebasestorage.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID # 888301859014
-NEXT_PUBLIC_FIREBASE_APP_ID             # 1:888301859014:web:42e81d0050407b755d27c7
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID     # G-EHCJX98TZX
+NEXT_PUBLIC_FIREBASE_API_KEY            # From your Firebase project config
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN        # your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID         # your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET     # your-project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID # Your messaging sender ID
+NEXT_PUBLIC_FIREBASE_APP_ID             # Your Firebase app ID
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID     # Your Google Analytics measurement ID
 ```
 
 ## Setup Steps Summary
@@ -110,15 +110,15 @@ git push origin main
 
 **Terraform Variables (terraform.tfvars):**
 ```hcl
-project_id = "home-00"
+project_id = "your-gcp-project-id"
 region = "us-central1"
 github_repo = "your-username/FileManager"  # REPLACE WITH YOUR REPO
 
 storage_buckets = [
-  "my-sample-bucket-1",
-  "my-sample-bucket-2", 
-  "another-bucket",
-  "home-00-thamindu-storage"
+  "your-unique-bucket-1",
+  "your-unique-bucket-2", 
+  "another-unique-bucket",
+  "your-project-storage"
 ]
 
 enable_workload_identity = true
@@ -126,18 +126,18 @@ enable_workload_identity = true
 
 **GitHub Variables (from .env.local):**
 ```
-NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyC01VvfHfQ4WV-YVZBmJoMOWG74VtSN4Jg
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=home-00.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=home-00
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=home-00.firebasestorage.app
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=888301859014
-NEXT_PUBLIC_FIREBASE_APP_ID=1:888301859014:web:42e81d0050407b755d27c7
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=G-EHCJX98TZX
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your-measurement-id
 ```
 
 **GitHub Secrets:**
 ```
-FIREBASE_SERVICE_ACCOUNT_KEY=ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsC... (from your .env.local)
+FIREBASE_SERVICE_ACCOUNT_KEY=base64-encoded-service-account-json
 NEXTAUTH_SECRET=[generate new with: openssl rand -base64 32]
 ```
 
