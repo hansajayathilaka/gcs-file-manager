@@ -1,0 +1,272 @@
+name: Deploy to Google Cloud Run
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE_NAME }}
+  REGION: ${{ vars.GCP_REGION }}
+  REPOSITORY: ${{ vars.ARTIFACT_REGISTRY_REPO }}
+  IMAGE_NAME: filemanager
+
+permissions:
+  contents: read
+  id-token: write  # Required for Workload Identity
+
+jobs:
+  # Job 1: Build and Test
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint
+      continue-on-error: true
+
+    - name: Run type checking
+      run: npm run type-check
+      continue-on-error: true
+
+    - name: Build application
+      run: npm run build
+      env:
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+        NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+
+  # Job 2: Check Infrastructure (verify Terraform resources exist)
+  check-infrastructure:
+    name: Check Infrastructure
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    outputs:
+      infrastructure-exists: ${{ steps.check-infra.outputs.exists }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set authentication method
+      id: auth-method
+      run: |
+        if [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
+          echo "method=workload-identity" >> $GITHUB_OUTPUT
+        else
+          echo "method=service-account" >> $GITHUB_OUTPUT
+        fi
+
+    # Authenticate to Google Cloud using Workload Identity (more secure)
+    - name: Authenticate to Google Cloud (Workload Identity)
+      if: steps.auth-method.outputs.method == 'workload-identity'
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    # Fallback: Authenticate using Service Account Key (less secure)
+    - name: Authenticate to Google Cloud (Service Account Key)
+      if: steps.auth-method.outputs.method == 'service-account'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ vars.GCP_PROJECT_ID }}
+
+    - name: Check if infrastructure exists
+      id: check-infra
+      run: |
+        echo "Checking if required infrastructure exists..."
+        
+        # Check if Artifact Registry repository exists
+        if gcloud artifacts repositories describe ${{ vars.ARTIFACT_REGISTRY_REPO }} \
+           --location=${{ vars.GCP_REGION }} \
+           --project=${{ vars.GCP_PROJECT_ID }} &>/dev/null; then
+          echo "✅ Artifact Registry repository exists"
+          INFRA_EXISTS="true"
+        else
+          echo "❌ Artifact Registry repository does not exist"
+          INFRA_EXISTS="false"
+        fi
+        
+        # Check if Cloud Run service exists
+        if gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
+           --region=${{ vars.GCP_REGION }} \
+           --project=${{ vars.GCP_PROJECT_ID }} &>/dev/null; then
+          echo "✅ Cloud Run service exists"
+        else
+          echo "❌ Cloud Run service does not exist"
+          INFRA_EXISTS="false"
+        fi
+        
+        echo "exists=$INFRA_EXISTS" >> $GITHUB_OUTPUT
+        
+        if [ "$INFRA_EXISTS" = "false" ]; then
+          echo ""
+          echo "🚨 Infrastructure not found!"
+          echo "Please run the Terraform workflow first to provision the infrastructure:"
+          echo "1. Go to Actions → Terraform Infrastructure Management"
+          echo "2. Click 'Run workflow'"
+          echo "3. Select 'apply' action and configure your settings"
+          echo "4. Wait for infrastructure provisioning to complete"
+          echo "5. Then re-run this deployment workflow"
+          exit 1
+        fi
+
+  # Job 3: Deploy to Cloud Run (only if infrastructure exists)
+  deploy:
+    name: Deploy to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [build-and-test, check-infrastructure]
+    if: needs.check-infrastructure.outputs.infrastructure-exists == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set authentication method
+      id: auth-method
+      run: |
+        if [ -n "${{ secrets.WIF_PROVIDER }}" ]; then
+          echo "method=workload-identity" >> $GITHUB_OUTPUT
+        else
+          echo "method=service-account" >> $GITHUB_OUTPUT
+        fi
+
+    # Authenticate to Google Cloud using Workload Identity (more secure)
+    - name: Authenticate to Google Cloud (Workload Identity)
+      if: steps.auth-method.outputs.method == 'workload-identity'
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+    # Fallback: Authenticate using Service Account Key (less secure)
+    - name: Authenticate to Google Cloud (Service Account Key)
+      if: steps.auth-method.outputs.method == 'service-account'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ vars.GCP_PROJECT_ID }}
+
+    - name: Configure Docker to use gcloud as a credential helper
+      run: |
+        gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+        docker tag ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+    - name: Push Docker image to Artifact Registry
+      run: |
+        docker push ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:latest
+
+    - name: Generate Cloud Run service specification
+      run: |
+        # Create the service spec from template
+        envsubst < .github/templates/cloudrun-service.template.yaml > cloudrun-service.yaml
+      env:
+        SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE_NAME }}
+        IMAGE_URL: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.NEXT_PUBLIC_FIREBASE_API_KEY }}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ vars.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_APP_ID }}
+        NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ vars.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+        FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        GOOGLE_CLOUD_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+        ALLOWED_BUCKETS: ${{ vars.ALLOWED_BUCKETS }}
+        NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        NEXTAUTH_URL: ${{ vars.NEXTAUTH_URL }}
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run services replace cloudrun-service.yaml \
+          --region=${{ vars.GCP_REGION }} \
+          --project=${{ vars.GCP_PROJECT_ID }}
+
+    - name: Get Cloud Run service URL
+      id: get-url
+      run: |
+        SERVICE_URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
+          --region=${{ vars.GCP_REGION }} \
+          --project=${{ vars.GCP_PROJECT_ID }} \
+          --format="value(status.url)")
+        echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_OUTPUT
+        echo "Service deployed at: $SERVICE_URL"
+
+    - name: Test deployment
+      run: |
+        # Wait a bit for the service to be ready
+        sleep 30
+        
+        # Test the health endpoint
+        curl -f ${{ steps.get-url.outputs.SERVICE_URL }}/api/health || exit 1
+        echo "Health check passed!"
+
+  # Job 4: Notify deployment status
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [build-and-test, check-infrastructure, deploy]
+    if: always()
+    
+    steps:
+    - name: Infrastructure Check Failed
+      if: needs.check-infrastructure.result == 'failure'
+      run: |
+        echo "❌ Infrastructure check failed!"
+        echo "Please run the Terraform workflow first to provision the infrastructure."
+        exit 1
+        
+    - name: Deployment Success
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "✅ Deployment successful!"
+        echo "Service is available at the Cloud Run URL"
+
+    - name: Deployment Failed
+      if: needs.deploy.result == 'failure'
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Check the logs above for details"
+        exit 1
+        
+    - name: Deployment Skipped
+      if: needs.deploy.result == 'skipped'
+      run: |
+        echo "⚠️ Deployment was skipped due to infrastructure check failure"
+        echo "Run the Terraform workflow first to provision the infrastructure"

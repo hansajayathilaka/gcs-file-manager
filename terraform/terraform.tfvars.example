@@ -1,0 +1,37 @@
+# Terraform configuration file for FileManager project
+# Copy this file to terraform.tfvars and customize the values
+# ALL VALUES ARE REQUIRED - no defaults are provided for security
+
+# Required: Your GCP Project ID
+project_id = "YOUR-PROJECT-ID"  # Replace with your actual GCP project ID
+
+# Required: GCP Region for resources
+region = "us-central1"  # Replace with your preferred region
+
+# Optional: GCP Zone (will default to {region}-a if not specified)
+# zone = "us-central1-a"
+
+# Required: Cloud Run service name
+service_name = "filemanager"  # Replace with your preferred service name
+
+# Required: Artifact Registry repository name
+artifact_registry_repo = "filemanager-repo"  # Replace with your preferred repo name
+
+# Required: List of Cloud Storage buckets to create
+# IMPORTANT: Use unique bucket names - they must be globally unique across all of GCP
+storage_buckets = [
+  "YOUR-UNIQUE-BUCKET-1",      # Replace with your unique bucket names
+  "YOUR-UNIQUE-BUCKET-2", 
+  "YOUR-UNIQUE-BUCKET-3"
+]
+
+# Required: Environment name
+environment = "prod"  # Choose: dev, staging, or prod
+
+# Required for Workload Identity: GitHub repository in format "owner/repo"
+# Example: "username/filemanager" or "organization/filemanager"
+github_repo = "YOUR-USERNAME/YOUR-REPO"  # Replace with your GitHub repo
+
+# Required: Enable Workload Identity (recommended for security)
+# Set to false only if you prefer to use service account keys
+enable_workload_identity = true

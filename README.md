@@ -55,49 +55,83 @@ npm run dev
 - `GOOGLE_CLOUD_PROJECT_ID` - Google Cloud project ID
 - `ALLOWED_BUCKETS` - Comma-separated list of allowed GCS bucket names
 
-### Authentication
-- `NEXTAUTH_SECRET` - Secret for NextAuth (any random string)
-- `NEXTAUTH_URL` - Base URL of your application
+## Documentation
 
-## Setup Instructions
+- 📖 **[Deployment Guide](./DEPLOYMENT.md)** - Complete production deployment instructions
+- 🏗️ **[Terraform Setup](./terraform/README.md)** - Infrastructure as Code configuration
+- 🔧 **[GitHub Variables Setup](./docs/GITHUB_VARIABLES_SETUP.md)** - GitHub Actions configuration
+- 🔐 **[GitHub Setup Guide](./docs/GITHUB_SETUP.md)** - Secrets and authentication setup
 
-### 1. Firebase Setup
+## Architecture
 
-1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-2. Enable Authentication and configure sign-in providers:
-   - Email/Password
-   - Google OAuth
-3. Generate service account key:
-   - Go to Project Settings > Service Accounts
-   - Generate new private key
-   - Base64 encode the JSON file content
-4. Copy configuration values to `.env.local`
+### Tech Stack
+- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
+- **Authentication**: Firebase Auth (email/password + Google OAuth)
+- **Storage**: Google Cloud Storage with streaming support
+- **Deployment**: Google Cloud Run with GitHub Actions
+- **Infrastructure**: Terraform for automated provisioning
 
-### 2. Google Cloud Setup
+### Key Features
+- 🖥️ **Three-Panel Layout** - Persistent file preview with streaming
+- 📁 **Multi-Format Preview** - Images, videos, audio, text files
+- 🎥 **Video Streaming** - HTTP range requests for large files
+- 📱 **Responsive Design** - Modern UI with proper mobile support
+- 🔒 **Security** - Workload Identity and proper authentication
+- 🚀 **Performance** - Optimized for large files and efficient streaming
 
-1. Create a GCP project or use existing one
-2. Enable Cloud Storage API
-3. Create GCS buckets that you want to manage
-4. Set up IAM permissions:
-   - Cloud Storage Admin role for the service account
-   - Cloud Run Admin role for deployment
+## Environment Variables
 
-### 3. Cloud Run Deployment
+See `.env.local.example` for complete configuration. Key variables include:
 
-1. Install Google Cloud SDK
-2. Configure authentication:
-```bash
-gcloud auth login
-gcloud config set project YOUR_PROJECT_ID
+### Firebase Configuration (Public)
+```env
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+# ... additional Firebase config
 ```
 
-3. Build and deploy:
-```bash
-# For Linux/Mac
-./deploy.sh YOUR_PROJECT_ID us-central1
+### Server Configuration (Private)
+```env
+FIREBASE_SERVICE_ACCOUNT_KEY=base64-encoded-service-account-json
+GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
+ALLOWED_BUCKETS=bucket1,bucket2,bucket3
+NEXTAUTH_SECRET=your-secret-key
+```
 
-# For Windows
-deploy.bat YOUR_PROJECT_ID us-central1
+## Quick Local Development
+
+1. **Clone and install dependencies:**
+```bash
+git clone https://github.com/your-username/FileManager.git
+cd FileManager
+npm install
+```
+
+2. **Set up environment variables:**
+```bash
+cp .env.local.example .env.local
+# Edit .env.local with your Firebase and GCP configuration
+```
+
+3. **Run development server:**
+```bash
+npm run dev
+```
+
+4. **Open http://localhost:3000**
+
+## Production Deployment
+
+For production deployment to Google Cloud Run with full infrastructure automation:
+
+📖 **[Complete Deployment Guide](./DEPLOYMENT.md)** - Step-by-step production deployment
+
+Key features:
+- 🏗️ **Terraform Infrastructure** - Automated GCP resource provisioning
+- 🚀 **GitHub Actions** - Continuous deployment pipeline
+- 🔐 **Workload Identity** - Secure keyless authentication
+- 📋 **Environment Management** - Multi-environment support
 ```
 
 ## Project Structure

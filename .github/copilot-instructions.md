@@ -3,7 +3,7 @@
 <!-- Use this file to provide workspace-specific custom instructions to Copilot. For more details, visit https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
 
 ## Project Overview
-This is a Next.js application for managing Google Cloud Storage (GCS) buckets with Firebase authentication. The application features a modern three-panel layout with a persistent file preview system, streaming video support, and comprehensive file management capabilities. The application is designed to be deployed on Google Cloud Run.
+This is a Next.js application for managing Google Cloud Storage (GCS) buckets with Firebase authentication. The application features a modern three-panel layout with a persistent file preview system, streaming video support, and comprehensive file management capabilities. The project uses Infrastructure as Code (Terraform) for automated deployment to Google Cloud Run with GitHub Actions.
 
 ## Key Technologies
 - **Framework**: Next.js 15 with TypeScript and App Router
@@ -11,7 +11,59 @@ This is a Next.js application for managing Google Cloud Storage (GCS) buckets wi
 - **Authentication**: Firebase Auth (email/password + Google OAuth)
 - **Storage**: Google Cloud Storage (GCS) with streaming support
 - **File Preview**: Multi-format preview with streaming for large videos
-- **Deployment**: Google Cloud Run
+- **Infrastructure**: Terraform for automated GCP resource provisioning
+- **Deployment**: Google Cloud Run with GitHub Actions CI/CD
+- **Security**: Workload Identity for keyless authentication
+- **State Management**: React hooks and context
+
+## Performance Optimization
+- Implement streaming for large files (>100MB)
+- Use HTTP range requests for video playbook
+- Proper loading states and error handling
+- Efficient file listing with pagination support
+- Optimize bundle size and minimize re-renders
+- **Infrastructure Efficiency**: Auto-scaling Cloud Run with appropriate resource limits
+
+## Deployment & Infrastructure
+
+### Terraform Workflow
+- Use `terraform.yml` GitHub Actions workflow for infrastructure changes
+- All GCP resources defined in `/terraform` directory with proper variables
+- Support for multiple environments (dev, staging, prod)
+- Automated state management and drift detection
+
+### GitHub Actions Configuration
+- **Required GitHub Variables**: All infrastructure settings must be explicitly configured
+- **Secrets Management**: Use Workload Identity when possible, service account keys as fallback
+- **Validation**: Workflows fail fast with clear error messages if configuration is missing
+- **Documentation**: Comprehensive setup guides in `/docs` directory
+
+### Environment Variables Structure
+```bash
+# Terraform Variables (GitHub Variables)
+TERRAFORM_PROJECT_ID=your-gcp-project
+TERRAFORM_REGION=us-central1
+TERRAFORM_STORAGE_BUCKETS=bucket1,bucket2,bucket3
+TERRAFORM_ENABLE_WORKLOAD_IDENTITY=true
+
+# Application Variables (Runtime)
+NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+FIREBASE_SERVICE_ACCOUNT_KEY=base64-encoded-key
+ALLOWED_BUCKETS=bucket1,bucket2,bucket3
+```-a-githubcopilotinstructionsmd-file -->
+
+## Project Overview
+This is a Next.js application for managing Google Cloud Storage (GCS) buckets with Firebase authentication. The application features a modern three-panel layout with a persistent file preview system, streaming video support, and comprehensive file management capabilities. The project uses Infrastructure as Code (Terraform) for automated deployment to Google Cloud Run with GitHub Actions.
+
+## Key Technologies
+- **Framework**: Next.js 15 with TypeScript and App Router
+- **Styling**: Tailwind CSS with custom responsive design patterns
+- **Authentication**: Firebase Auth (email/password + Google OAuth)
+- **Storage**: Google Cloud Storage (GCS) with streaming support
+- **File Preview**: Multi-format preview with streaming for large videos
+- **Infrastructure**: Terraform for automated GCP resource provisioning
+- **Deployment**: Google Cloud Run with GitHub Actions CI/CD
+- **Security**: Workload Identity for keyless authentication
 - **State Management**: React hooks and context
 
 ## Project Structure
@@ -26,6 +78,30 @@ This is a Next.js application for managing Google Cloud Storage (GCS) buckets wi
 - `/src/types` - TypeScript type definitions
 - `/src/hooks` - Custom React hooks
 - `/src/app/api` - API routes for file operations and streaming
+- `/terraform` - Infrastructure as Code configuration
+- `/docs` - Organized documentation (setup guides, GitHub configuration)
+- `/.github/workflows` - CI/CD workflows for infrastructure and deployment
+
+## Infrastructure & Deployment
+
+### Terraform Infrastructure
+- **Automated Provisioning**: All GCP resources managed via Terraform
+- **Security-First**: Workload Identity for keyless GitHub Actions authentication
+- **Resource Management**: Cloud Run, Artifact Registry, Storage buckets, IAM roles
+- **Environment Support**: Configurable for dev, staging, and production environments
+- **State Management**: Terraform tracks all infrastructure state and changes
+
+### GitHub Actions Workflows
+- **Infrastructure Management**: `terraform.yml` for provisioning GCP resources
+- **Application Deployment**: `deploy.yml` for building and deploying to Cloud Run
+- **Variable-Driven**: Uses GitHub Variables and Secrets for secure configuration
+- **Validation**: Comprehensive error checking and validation before deployment
+
+### Configuration Standards
+- **No Hard-Coded Defaults**: All configuration must be explicitly set via GitHub Variables
+- **Secure by Default**: Workload Identity preferred over service account keys
+- **Environment Variables**: Clear separation of public and private configuration
+- **Documentation**: Comprehensive setup guides with validation steps
 
 ## UI/UX Design Patterns
 
@@ -75,6 +151,12 @@ This is a Next.js application for managing Google Cloud Storage (GCS) buckets wi
 - **Availability Checking**: Return `previewAvailable` flag for all file types
 
 ## Code Conventions
+
+### Configuration File Standards
+- **TypeScript Configuration**: Use `next.config.ts` (TypeScript) instead of `next.config.js`
+- **Infrastructure as Code**: All GCP resources defined in Terraform, no bash scripts
+- **Environment Variables**: Use `.env.local.example` as template, never commit actual secrets
+- **Documentation**: Maintain organized docs/ directory with clear navigation
 
 ### TypeScript & React
 - Use TypeScript strictly with proper type definitions
@@ -230,3 +312,11 @@ export async function GET(request: NextRequest) {
 - Verify proper error handling for network issues
 - Test bulk operations with many files selected
 - Ensure proper cleanup of object URLs and resources
+
+## Documentation Organization
+The project maintains clean, organized documentation:
+- **Root README.md**: Project overview and quick local development
+- **DEPLOYMENT.md**: Complete production deployment workflow
+- **docs/**: Specialized setup guides and configuration instructions
+- **terraform/README.md**: Infrastructure details and Terraform usage
+- **No Duplication**: Each topic covered in exactly one place with clear cross-references
