@@ -43,7 +43,7 @@ This is a Next.js application for managing Google Cloud Storage (GCS) buckets wi
 # Terraform Variables (GitHub Variables)
 TERRAFORM_PROJECT_ID=your-gcp-project
 TERRAFORM_REGION=us-central1
-TERRAFORM_STORAGE_BUCKETS=bucket1,bucket2,bucket3
+TERRAFORM_STORAGE_BUCKETS=[{"name":"bucket1","storage_class":"STANDARD"},{"name":"bucket2","storage_class":"NEARLINE"}]
 TERRAFORM_ENABLE_WORKLOAD_IDENTITY=true
 
 # Application Variables (Runtime)

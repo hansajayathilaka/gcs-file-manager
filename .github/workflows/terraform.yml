@@ -214,9 +214,21 @@ jobs:
         
         echo "Raw buckets input: $BUCKETS_INPUT"
         
-        # Fix GitHub Actions JSON parsing issue by re-quoting values
-        # GitHub Actions removes quotes from JSON values, so we need to restore them
-        BUCKETS_FIXED=$(echo "$BUCKETS_INPUT" | sed 's/name:\([^,}]*\)/name:"\1"/g' | sed 's/storage_class:\([^,}]*\)/storage_class:"\1"/g' | sed 's/location:\([^,}]*\)/location:"\1"/g')
+        # Fix GitHub Actions JSON parsing issue
+        # GitHub Actions removes quotes from JSON, so we need to reconstruct valid JSON
+        # First, try to parse as-is in case it's already valid JSON
+        if echo "$BUCKETS_INPUT" | jq empty 2>/dev/null; then
+          echo "Input is already valid JSON"
+          BUCKETS_FIXED="$BUCKETS_INPUT"
+        else
+          echo "Fixing GitHub Actions unquoted JSON format..."
+          # Use sed to add quotes around unquoted field names and values
+          BUCKETS_FIXED=$(echo "$BUCKETS_INPUT" | \
+            sed 's/{\s*name:/{"name":/g' | \
+            sed 's/,\s*storage_class:/,"storage_class":/g' | \
+            sed 's/,\s*location:/,"location":/g' | \
+            sed 's/:\s*\([^",}]\+\)/:\"\1\"/g')
+        fi
         
         echo "Fixed buckets input: $BUCKETS_FIXED"
         
