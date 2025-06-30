@@ -201,85 +201,9 @@ resource "google_service_account_key" "github_actions_key" {
   public_key_type    = "TYPE_X509_PEM_FILE"
 }
 
-# Cloud Run service (placeholder, will be deployed by GitHub Actions)
-# This just reserves the name and sets up basic configuration
-resource "google_cloud_run_service" "filemanager" {
-  name     = var.service_name
-  location = var.region
-
-  # Ignore changes if service already exists and is managed externally
-  lifecycle {
-    ignore_changes = [
-      # Ignore changes to these fields if service is updated by GitHub Actions
-      template[0].spec[0].containers[0].image,
-      template[0].spec[0].containers[0].env,
-      template[0].spec[0].containers[0].ports,
-      template[0].metadata[0].annotations,
-      metadata[0].annotations
-    ]
-  }
-
-  template {
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/maxScale" = "1"
-        "autoscaling.knative.dev/minScale" = "0"
-        "run.googleapis.com/cpu-throttling" = "false"
-        "run.googleapis.com/cpu-allocation" = "request"
-      }
-    }
-
-    spec {
-      container_concurrency = 100
-      timeout_seconds      = 300
-      service_account_name = google_service_account.github_actions.email
-
-      containers {
-        # Placeholder image - will be updated by GitHub Actions
-        image = "gcr.io/cloudrun/hello"
-        
-        ports {
-          container_port = 8080
-        }
-
-        resources {
-          limits = {
-            cpu    = "1000m"
-            memory = "1Gi"
-          }
-          requests = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
-        }
-
-        # Basic environment variables (others will be set by GitHub Actions)
-        env {
-          name  = "NODE_ENV"
-          value = "production"
-        }
-      }
-    }
-  }
-
-  metadata {
-    labels = {
-      environment = var.environment
-      application = "filemanager"
-      managed_by  = "terraform"
-    }
-  }
-
-  depends_on = [google_project_service.required_apis]
-}
-
-# Allow public access to Cloud Run service
-resource "google_cloud_run_service_iam_member" "public_access" {
-  service  = google_cloud_run_service.filemanager.name
-  location = google_cloud_run_service.filemanager.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
+# Note: Cloud Run service is managed by GitHub Actions deployment pipeline
+# The service will be created and updated by the deployment workflow
+# This removes it from Terraform management to avoid conflicts
 
 # Enable billing for the project (if billing account is provided)
 resource "google_billing_project_info" "project_billing" {

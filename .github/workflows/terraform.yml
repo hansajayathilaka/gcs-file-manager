@@ -390,24 +390,31 @@ jobs:
         fi
         
         # Import storage buckets with more robust error handling
-        echo "🪣 Importing storage buckets..."
+        echo "🪣 Importing storage buckets (critical for avoiding 409 conflicts)..."
         BUCKETS_JSON="${{ env.TF_VAR_storage_buckets }}"
-        echo "$BUCKETS_JSON" | jq -r '.[].name' | while IFS= read -r bucket_name; do
-          if [ -n "$bucket_name" ] && [ "$bucket_name" != "null" ]; then
-            echo "Processing bucket: $bucket_name"
-            import_if_exists \
-              "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" \
-              "$bucket_name" \
-              "Storage Bucket: $bucket_name"
-          fi
-        done
         
-        # Import Cloud Run service
-        SERVICE_NAME="${{ env.TF_VAR_service_name }}"
-        import_if_exists \
-          "google_cloud_run_service.filemanager" \
-          "projects/$PROJECT_ID/locations/$REGION/services/$SERVICE_NAME" \
-          "Cloud Run Service: $SERVICE_NAME"
+        # Pre-validate JSON
+        if ! echo "$BUCKETS_JSON" | jq empty 2>/dev/null; then
+          echo "❌ Invalid buckets JSON, skipping import"
+        else
+          # Import each bucket individually with error handling
+          echo "$BUCKETS_JSON" | jq -r '.[].name' | while IFS= read -r bucket_name; do
+            if [ -n "$bucket_name" ] && [ "$bucket_name" != "null" ]; then
+              echo "🔍 Checking bucket: $bucket_name"
+              
+              # Check if bucket exists in GCS
+              if gsutil ls -b "gs://$bucket_name" >/dev/null 2>&1; then
+                echo "📦 Bucket $bucket_name exists in GCS, attempting import..."
+                import_if_exists \
+                  "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" \
+                  "$bucket_name" \
+                  "Storage Bucket: $bucket_name"
+              else
+                echo "ℹ️  Bucket $bucket_name doesn't exist yet, will be created"
+              fi
+            fi
+          done
+        fi
         
         echo "✅ Resource import check completed"
 
