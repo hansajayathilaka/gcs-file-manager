@@ -65,6 +65,14 @@ on:
           - dev
           - staging
           - prod
+      force_unlock:
+        description: 'Force unlock Terraform state (use only if state is locked)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 env:
   # Set Terraform variables with fallbacks from GitHub variables (no hard-coded defaults)
@@ -299,7 +307,16 @@ jobs:
 
     - name: Terraform Init
       working-directory: terraform
-      run: terraform init
+      run: |
+        echo "🔧 Initializing Terraform..."
+        
+        # Handle force unlock if requested
+        if [ "${{ github.event.inputs.force_unlock }}" = "true" ]; then
+          echo "🔓 Force unlocking Terraform state..."
+          terraform force-unlock -force || echo "No lock to remove or unlock failed (this might be normal)"
+        fi
+        
+        terraform init
 
     - name: Terraform Validate
       working-directory: terraform
@@ -341,6 +358,7 @@ jobs:
           echo "- Invalid resource configurations"
           echo "- Insufficient permissions"
           echo "- Billing not enabled for the project"
+          echo "- Resources already exist (409 Conflict errors)"
           echo ""
           echo "Please check the error messages above and verify:"
           echo "1. All required GitHub Variables are set correctly"
@@ -352,6 +370,11 @@ jobs:
           echo "   - Go to Google Cloud Console > Billing"
           echo "   - Link a billing account to your project: ${{ env.TF_VAR_project_id }}"
           echo "   - Or provide billing_account_id when running this workflow"
+          echo ""
+          echo "🔄 **Resource Conflicts (409)?** If you see 'already exists' errors:"
+          echo "   - This usually means previous runs created resources"
+          echo "   - The import step should handle this automatically"
+          echo "   - If issues persist, check the Terraform state file"
           exit 1
         elif [ $PLAN_EXIT_CODE -eq 2 ]; then
           echo "📝 Plan generated successfully with changes to apply"
@@ -472,3 +495,65 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Review the plan above and run with 'apply' action to provision infrastructure." >> $GITHUB_STEP_SUMMARY
         fi
+
+    - name: Import Existing Resources (if needed)
+      if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
+      working-directory: terraform
+      run: |
+        echo "🔄 Checking for existing resources that need to be imported..."
+        
+        # Function to safely import resources
+        import_if_exists() {
+          local resource_address="$1"
+          local resource_id="$2"
+          local resource_name="$3"
+          
+          echo "Checking if $resource_name exists..."
+          
+          # Try to import, ignore error if resource doesn't exist or is already managed
+          terraform import "$resource_address" "$resource_id" 2>/dev/null || {
+            echo "Resource $resource_name: already managed or doesn't exist (this is fine)"
+          }
+        }
+        
+        # Import common resources that might already exist
+        PROJECT_ID="${{ env.TF_VAR_project_id }}"
+        REGION="${{ env.TF_VAR_region }}"
+        REPO_NAME="${{ env.TF_VAR_artifact_registry_repo }}"
+        
+        # Import Artifact Registry repository
+        import_if_exists \
+          "google_artifact_registry_repository.filemanager_repo" \
+          "projects/$PROJECT_ID/locations/$REGION/repositories/$REPO_NAME" \
+          "Artifact Registry Repository"
+        
+        # Import GitHub Actions service account
+        import_if_exists \
+          "google_service_account.github_actions" \
+          "projects/$PROJECT_ID/serviceAccounts/github-actions-sa@$PROJECT_ID.iam.gserviceaccount.com" \
+          "GitHub Actions Service Account"
+        
+        # Import Workload Identity Pool (if enabled)
+        if [ "${{ env.TF_VAR_enable_workload_identity }}" = "true" ]; then
+          import_if_exists \
+            "google_iam_workload_identity_pool.github_pool[0]" \
+            "projects/$PROJECT_ID/locations/global/workloadIdentityPools/github-actions-pool" \
+            "Workload Identity Pool"
+          
+          import_if_exists \
+            "google_iam_workload_identity_pool_provider.github_provider[0]" \
+            "projects/$PROJECT_ID/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider" \
+            "Workload Identity Provider"
+        fi
+        
+        # Import storage buckets
+        echo "${{ env.TF_VAR_storage_buckets }}" | jq -r '.[].name' | while read bucket_name; do
+          if [ -n "$bucket_name" ]; then
+            import_if_exists \
+              "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" \
+              "$bucket_name" \
+              "Storage Bucket: $bucket_name"
+          fi
+        done
+        
+        echo "✅ Resource import check completed"

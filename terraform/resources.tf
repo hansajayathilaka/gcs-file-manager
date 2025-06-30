@@ -26,6 +26,15 @@ resource "google_artifact_registry_repository" "filemanager_repo" {
   description   = "Docker repository for FileManager application"
   format        = "DOCKER"
 
+  # Ignore changes if repository already exists
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to these fields if resource already exists
+      description,
+      labels
+    ]
+  }
+
   labels = {
     environment = var.environment
     application = "filemanager"
@@ -90,6 +99,14 @@ resource "google_service_account" "github_actions" {
   account_id   = "github-actions-sa"
   display_name = "GitHub Actions Service Account"
   description  = "Service account for GitHub Actions CI/CD pipeline"
+  
+  # Ignore changes if service account already exists
+  lifecycle {
+    ignore_changes = [
+      display_name,
+      description
+    ]
+  }
 }
 
 # IAM roles for the GitHub Actions service account
@@ -114,7 +131,16 @@ resource "google_iam_workload_identity_pool" "github_pool" {
   workload_identity_pool_id = "github-actions-pool"
   display_name              = "GitHub Actions Pool"
   description               = "Workload Identity Pool for GitHub Actions"
+  
+  # Ignore changes if pool already exists
+  lifecycle {
+    ignore_changes = [
+      display_name,
+      description
+    ]
+  }
 }
+
 
 # Workload Identity Provider for GitHub
 resource "google_iam_workload_identity_pool_provider" "github_provider" {
