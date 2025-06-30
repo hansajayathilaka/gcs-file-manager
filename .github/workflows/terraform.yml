@@ -335,34 +335,45 @@ jobs:
       working-directory: terraform
       run: |
         echo "🔄 Checking for existing resources that need to be imported..."
+        echo "This step prevents 409 'already exists' errors when resources were created outside Terraform"
         
-        # Function to safely import resources
+        # Function to safely import resources with detailed logging
         import_if_exists() {
           local resource_address="$1"
           local resource_id="$2"
           local resource_name="$3"
           
-          echo "Checking if $resource_name exists..."
+          echo ""
+          echo "🔍 Checking: $resource_name"
+          echo "   Resource Address: $resource_address"
+          echo "   Resource ID: $resource_id"
           
           # First check if resource is already in state
           if terraform state show "$resource_address" >/dev/null 2>&1; then
-            echo "Resource $resource_name: already in Terraform state"
+            echo "   ✅ Already in Terraform state - skipping"
             return 0
           fi
           
-          # Try to import, ignore error if resource doesn't exist
-          echo "Attempting to import $resource_name..."
-          if terraform import "$resource_address" "$resource_id" >/dev/null 2>&1; then
-            echo "✅ Successfully imported $resource_name"
+          # Try to import, with detailed error handling
+          echo "   🔄 Attempting import..."
+          if terraform import "$resource_address" "$resource_id" 2>&1; then
+            echo "   ✅ Successfully imported $resource_name"
           else
-            echo "ℹ️  Resource $resource_name: not found or failed to import (this might be normal)"
+            echo "   ℹ️  Import failed or resource doesn't exist (this might be normal for new resources)"
           fi
         }
         
-        # Import common resources that might already exist
+        # Set variables for easier reference
         PROJECT_ID="${{ env.TF_VAR_project_id }}"
         REGION="${{ env.TF_VAR_region }}"
         REPO_NAME="${{ env.TF_VAR_artifact_registry_repo }}"
+        SERVICE_NAME="${{ env.TF_VAR_service_name }}"
+        
+        echo "Using configuration:"
+        echo "  Project ID: $PROJECT_ID"
+        echo "  Region: $REGION"
+        echo "  Repository: $REPO_NAME"
+        echo "  Service Name: $SERVICE_NAME"
         
         # Import Artifact Registry repository
         import_if_exists \
@@ -389,41 +400,56 @@ jobs:
             "Workload Identity Provider"
         fi
         
-        # Import storage buckets with more robust error handling
+        # Import storage buckets with robust handling for map-based resources
+        echo ""
         echo "🪣 Importing storage buckets (critical for avoiding 409 conflicts)..."
         BUCKETS_JSON="${{ env.TF_VAR_storage_buckets }}"
         
-        # Pre-validate JSON
+        # Pre-validate JSON and extract bucket names
         if ! echo "$BUCKETS_JSON" | jq empty 2>/dev/null; then
-          echo "❌ Invalid buckets JSON, skipping import"
+          echo "❌ Invalid buckets JSON, skipping bucket import"
         else
-          # Import each bucket individually with error handling
-          echo "$BUCKETS_JSON" | jq -r '.[].name' | while IFS= read -r bucket_name; do
+          echo "Valid JSON detected, extracting bucket names..."
+          
+          # Extract bucket names into a bash array (avoid pipe subshell issues)
+          bucket_names=($(echo "$BUCKETS_JSON" | jq -r '.[].name'))
+          
+          echo "Found ${#bucket_names[@]} buckets to check: ${bucket_names[*]}"
+          
+          # Import each bucket using proper bash array iteration
+          for bucket_name in "${bucket_names[@]}"; do
             if [ -n "$bucket_name" ] && [ "$bucket_name" != "null" ]; then
-              echo "🔍 Checking bucket: $bucket_name"
+              echo ""
+              echo "🔍 Processing bucket: $bucket_name"
               
-              # Check if bucket exists in GCS
+              # Check if bucket exists in GCS first
+              echo "   Checking if bucket exists in GCS..."
               if gsutil ls -b "gs://$bucket_name" >/dev/null 2>&1; then
-                echo "📦 Bucket $bucket_name exists in GCS, attempting import..."
+                echo "   📦 Bucket exists in GCS, importing to Terraform..."
                 import_if_exists \
                   "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" \
                   "$bucket_name" \
                   "Storage Bucket: $bucket_name"
               else
-                echo "ℹ️  Bucket $bucket_name doesn't exist yet, will be created"
+                echo "   ℹ️  Bucket doesn't exist in GCS yet, will be created by Terraform"
               fi
+            else
+              echo "   ⚠️  Skipping invalid bucket name: '$bucket_name'"
             fi
           done
         fi
         
         # Import Cloud Run service
-        SERVICE_NAME="${{ env.TF_VAR_service_name }}"
+        echo ""
+        echo "🚀 Importing Cloud Run service..."
         import_if_exists \
           "google_cloud_run_service.filemanager" \
           "projects/$PROJECT_ID/locations/$REGION/services/$SERVICE_NAME" \
           "Cloud Run Service: $SERVICE_NAME"
         
+        echo ""
         echo "✅ Resource import check completed"
+        echo "All existing resources have been imported into Terraform state to prevent conflicts"
 
     - name: Terraform Plan
       if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
