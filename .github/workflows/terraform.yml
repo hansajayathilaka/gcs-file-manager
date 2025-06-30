@@ -416,6 +416,13 @@ jobs:
           done
         fi
         
+        # Import Cloud Run service
+        SERVICE_NAME="${{ env.TF_VAR_service_name }}"
+        import_if_exists \
+          "google_cloud_run_service.filemanager" \
+          "projects/$PROJECT_ID/locations/$REGION/services/$SERVICE_NAME" \
+          "Cloud Run Service: $SERVICE_NAME"
+        
         echo "✅ Resource import check completed"
 
     - name: Terraform Plan
