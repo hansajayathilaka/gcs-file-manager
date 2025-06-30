@@ -54,9 +54,18 @@ resource "google_storage_bucket" "filemanager_buckets" {
   location      = each.value.location != null ? each.value.location : (var.zone != null ? var.zone : var.region)
   storage_class = each.value.storage_class
   
-  # Prevent accidental deletion
+  # Prevent accidental deletion and handle existing buckets
   lifecycle {
     prevent_destroy = true
+    ignore_changes = [
+      # Ignore changes to these fields if bucket already exists
+      location,
+      storage_class,
+      versioning,
+      cors,
+      uniform_bucket_level_access,
+      labels
+    ]
   }
 
   # Enable versioning for file safety

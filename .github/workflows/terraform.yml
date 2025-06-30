@@ -336,10 +336,19 @@ jobs:
           
           echo "Checking if $resource_name exists..."
           
-          # Try to import, ignore error if resource doesn't exist or is already managed
-          terraform import "$resource_address" "$resource_id" 2>/dev/null || {
-            echo "Resource $resource_name: already managed or doesn't exist (this is fine)"
-          }
+          # First check if resource is already in state
+          if terraform state show "$resource_address" >/dev/null 2>&1; then
+            echo "Resource $resource_name: already in Terraform state"
+            return 0
+          fi
+          
+          # Try to import, ignore error if resource doesn't exist
+          echo "Attempting to import $resource_name..."
+          if terraform import "$resource_address" "$resource_id" >/dev/null 2>&1; then
+            echo "✅ Successfully imported $resource_name"
+          else
+            echo "ℹ️  Resource $resource_name: not found or failed to import (this might be normal)"
+          fi
         }
         
         # Import common resources that might already exist
@@ -372,9 +381,12 @@ jobs:
             "Workload Identity Provider"
         fi
         
-        # Import storage buckets
-        echo "${{ env.TF_VAR_storage_buckets }}" | jq -r '.[].name' | while read bucket_name; do
-          if [ -n "$bucket_name" ]; then
+        # Import storage buckets with more robust error handling
+        echo "🪣 Importing storage buckets..."
+        BUCKETS_JSON="${{ env.TF_VAR_storage_buckets }}"
+        echo "$BUCKETS_JSON" | jq -r '.[].name' | while IFS= read -r bucket_name; do
+          if [ -n "$bucket_name" ] && [ "$bucket_name" != "null" ]; then
+            echo "Processing bucket: $bucket_name"
             import_if_exists \
               "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" \
               "$bucket_name" \
