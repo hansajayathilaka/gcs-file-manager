@@ -188,6 +188,18 @@ resource "google_cloud_run_service" "filemanager" {
   name     = var.service_name
   location = var.region
 
+  # Ignore changes if service already exists and is managed externally
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to these fields if service is updated by GitHub Actions
+      template[0].spec[0].containers[0].image,
+      template[0].spec[0].containers[0].env,
+      template[0].spec[0].containers[0].ports,
+      template[0].metadata[0].annotations,
+      metadata[0].annotations
+    ]
+  }
+
   template {
     metadata {
       annotations = {
