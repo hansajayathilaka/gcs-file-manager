@@ -4,14 +4,13 @@ metadata:
   name: ${SERVICE_NAME}
   annotations:
     run.googleapis.com/ingress: all
-    run.googleapis.com/execution-environment: gen2
 spec:
   template:
     metadata:
       annotations:
-        run.googleapis.com/execution-environment: gen2
         run.googleapis.com/cpu-throttling: "false"
-        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/cpu-allocation: "request"
+        autoscaling.knative.dev/maxScale: "1"
         run.googleapis.com/memory: "1Gi"
         run.googleapis.com/cpu: "1000m"
     spec:

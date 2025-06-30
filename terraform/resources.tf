@@ -191,10 +191,10 @@ resource "google_cloud_run_service" "filemanager" {
   template {
     metadata {
       annotations = {
-        "autoscaling.knative.dev/maxScale" = "10"
+        "autoscaling.knative.dev/maxScale" = "1"
         "autoscaling.knative.dev/minScale" = "0"
-        "run.googleapis.com/execution-environment" = "gen2"
         "run.googleapis.com/cpu-throttling" = "false"
+        "run.googleapis.com/cpu-allocation" = "request"
       }
     }
 
