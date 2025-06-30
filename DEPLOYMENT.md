@@ -46,7 +46,7 @@ All infrastructure settings must be explicitly configured. No hard-coded default
 - **TERRAFORM_REGION** - Your preferred GCP region
 - **TERRAFORM_SERVICE_NAME** - Cloud Run service name
 - **TERRAFORM_ARTIFACT_REGISTRY_REPO** - Docker repository name
-- **TERRAFORM_STORAGE_BUCKETS** - Comma-separated bucket names (must be globally unique)
+- **TERRAFORM_STORAGE_BUCKETS** - JSON array of bucket configurations with storage classes
 - **TERRAFORM_ENVIRONMENT** - Environment: dev, staging, or prod
 - **TERRAFORM_ENABLE_WORKLOAD_IDENTITY** - true (recommended) or false
 - **TERRAFORM_GITHUB_REPO** - Your GitHub repository (owner/repo format)
@@ -72,7 +72,7 @@ See [GitHub Variables Setup Guide](./docs/GITHUB_VARIABLES_SETUP.md) for detaile
      - **Region**: Your preferred region
      - **Service Name**: Cloud Run service name
      - **Artifact Registry Repo**: Docker repository name
-     - **Storage Buckets**: Comma-separated unique bucket names
+     - **Storage Buckets**: JSON array with bucket configurations and storage classes
      - **Environment**: dev, staging, or prod
      - **GitHub Repository**: Your repo in format `username/FileManager`
      - **Enable Workload Identity**: `true` (recommended)

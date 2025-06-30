@@ -28,7 +28,7 @@ variable "zone" {
   default     = null
   
   validation {
-    condition     = var.zone == null || length(var.zone) > 0
+    condition     = var.zone == null || (var.zone != null && var.zone != "")
     error_message = "Zone must be a valid GCP zone if provided."
   }
 }
@@ -56,8 +56,12 @@ variable "artifact_registry_repo" {
 }
 
 variable "storage_buckets" {
-  description = "List of Cloud Storage bucket names to create"
-  type        = list(string)
+  description = "List of Cloud Storage bucket configurations"
+  type = list(object({
+    name          = string
+    storage_class = optional(string, "STANDARD")
+    location      = optional(string, null) # If null, uses region or zone
+  }))
   # No default - must be provided via GitHub Variables or manual input
   
   validation {
@@ -66,8 +70,14 @@ variable "storage_buckets" {
   }
   
   validation {
-    condition     = alltrue([for bucket in var.storage_buckets : length(bucket) > 0])
-    error_message = "All storage bucket names must be non-empty strings."
+    condition = alltrue([
+      for bucket in var.storage_buckets : 
+      length(bucket.name) > 0 && contains([
+        "STANDARD", "NEARLINE", "COLDLINE", "ARCHIVE", 
+        "MULTI_REGIONAL", "REGIONAL"
+      ], bucket.storage_class)
+    ])
+    error_message = "All storage bucket names must be non-empty and storage_class must be one of: STANDARD, NEARLINE, COLDLINE, ARCHIVE, MULTI_REGIONAL, REGIONAL."
   }
 }
 

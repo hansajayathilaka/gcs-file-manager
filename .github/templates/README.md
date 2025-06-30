@@ -31,6 +31,6 @@ The template uses these variables (set by the deployment workflow):
 - `NEXT_PUBLIC_FIREBASE_*` - Firebase configuration
 - `FIREBASE_SERVICE_ACCOUNT_KEY` - Firebase admin credentials
 - `GOOGLE_CLOUD_PROJECT_ID` - GCP project ID
-- `ALLOWED_BUCKETS` - Comma-separated list of allowed GCS buckets
+- `ALLOWED_BUCKETS` - Bucket names from terraform output (space-separated for Cloud Run)
 - `NEXTAUTH_SECRET` - NextAuth secret
 - `NEXTAUTH_URL` - Application base URL

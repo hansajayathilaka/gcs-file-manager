@@ -64,7 +64,7 @@ GCP_PROJECT_ID                           # Your GCP project ID
 GCP_REGION                              # Deployment region  
 CLOUD_RUN_SERVICE_NAME                  # Service name
 ARTIFACT_REGISTRY_REPO                  # Docker registry
-ALLOWED_BUCKETS                         # Comma-separated bucket list
+ALLOWED_BUCKETS                         # Bucket names (from terraform output)
 NEXTAUTH_URL                            # Application URL
 NEXT_PUBLIC_FIREBASE_API_KEY            # Firebase config
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN        # Firebase config
@@ -166,7 +166,7 @@ GCP_PROJECT_ID                  # Your GCP project ID
 GCP_REGION                     # Deployment region
 CLOUD_RUN_SERVICE_NAME         # Cloud Run service name
 ARTIFACT_REGISTRY_REPO         # Artifact registry repository
-ALLOWED_BUCKETS                # Comma-separated bucket names
+ALLOWED_BUCKETS                # Bucket names (from terraform output)
 NEXTAUTH_URL                   # Application URL
 ```
 
@@ -243,6 +243,27 @@ terraform state list
 # Destroy infrastructure (careful!)
 terraform destroy
 ```
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+#### Terraform Validation Errors
+If you encounter validation errors during the Terraform workflow:
+
+```
+Error: Invalid function argument
+```
+
+This typically indicates a configuration issue in the Terraform files. The workflow will now catch these errors early and provide helpful guidance.
+
+#### Authentication Errors
+- **Workload Identity**: Ensure `WIF_PROVIDER` and `WIF_SERVICE_ACCOUNT` secrets are set correctly
+- **Service Account Key**: Ensure `GCP_SERVICE_ACCOUNT_KEY` is base64 encoded properly
+- **Bootstrap**: For first-time setup, create a temporary service account as shown above
+
+#### Missing Variables
+The workflow validates all required variables and will fail early with clear error messages if any are missing.
 
 ## Benefits of This Approach
 

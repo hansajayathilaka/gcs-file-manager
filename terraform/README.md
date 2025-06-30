@@ -2,10 +2,6 @@
 
 This directory contains Terraform configuration to provision all necessary Google Cloud Platform resources for the FileManager application.
 
-# Terraform Infrastructure for FileManager
-
-This directory contains Terraform configuration for provisioning Google Cloud Platform resources for the FileManager application.
-
 ## 🚀 Quick Start
 
 **Most users should use the automated GitHub Actions workflow:**
@@ -26,28 +22,42 @@ This directory contains Terraform configuration for provisioning Google Cloud Pl
 
 **📖 For complete setup instructions, see [DEPLOYMENT.md](../DEPLOYMENT.md)**
 
-## 🏗️ What This Creates
-
-- **Google Cloud APIs**: Enables required APIs (Cloud Run, Artifact Registry, Cloud Storage, etc.)
-- **Artifact Registry**: Docker repository for container images
-- **Cloud Storage Buckets**: All buckets specified in the configuration
-- **Service Account**: For GitHub Actions with minimal required permissions
-- **Cloud Run Service**: Placeholder service (actual deployment via GitHub Actions)
-- **IAM Roles**: Proper permissions for all resources
-- **Workload Identity** (Optional): Secure keyless authentication for GitHub Actions
-
-## 📋 Local Development (Optional)
-
-Only use this if you need to manage infrastructure locally:
-
 ## 🏗️ Infrastructure Components
 
 This Terraform configuration creates:
 
 - **Google Cloud APIs** - Enables required services (Cloud Run, Artifact Registry, Storage)
 - **Artifact Registry** - Docker repository for container images  
-- **Cloud Storage Buckets** - File storage with proper security and lifecycle policies
+- **Cloud Storage Buckets** - File storage with configurable storage classes (STANDARD, NEARLINE, COLDLINE, ARCHIVE)
 - **Service Account** - For GitHub Actions with minimal required permissions
+- **Cloud Run Service** - Placeholder service (actual deployment via GitHub Actions)
+- **IAM Roles** - Proper permissions for all resources
+- **Workload Identity** (Optional) - Secure keyless authentication for GitHub Actions
+
+### Storage Configuration Features
+
+- **Multiple Storage Classes**: Configure buckets with different storage classes for cost optimization
+- **Custom Locations**: Override default region/zone for specific buckets  
+- **Zone Support**: Uses zone variable when specified for bucket location
+- **Lifecycle Management**: Built-in versioning and access controls
+
+## � Validation & Error Handling
+
+The Terraform configuration includes comprehensive validation:
+
+- **Variable Validation** - All input variables are validated for proper format
+- **Null Safety** - Optional variables (like `zone`) properly handle null values
+- **Early Error Detection** - GitHub Actions workflow catches validation errors before deployment
+- **Clear Error Messages** - Helpful guidance when configuration issues occur
+
+If you encounter validation errors, check:
+1. All required variables are properly set
+2. Variable formats match expected patterns (e.g., valid GCP project IDs)
+3. Optional variables are either null or contain valid values
+
+## 📋 Local Development (Optional)
+
+Only use this if you need to manage infrastructure locally:
 - **Cloud Run Service** - Placeholder service (actual deployment via GitHub Actions)
 - **Workload Identity** (Optional) - Secure keyless authentication
 - **IAM Roles** - Proper permissions for all resources

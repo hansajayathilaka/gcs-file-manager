@@ -36,10 +36,11 @@ resource "google_artifact_registry_repository" "filemanager_repo" {
 
 # Create Cloud Storage buckets
 resource "google_storage_bucket" "filemanager_buckets" {
-  for_each = toset(var.storage_buckets)
+  for_each = { for bucket in var.storage_buckets : bucket.name => bucket }
   
-  name     = each.value
-  location = var.region
+  name          = each.value.name
+  location      = each.value.location != null ? each.value.location : (var.zone != null ? var.zone : var.region)
+  storage_class = each.value.storage_class
   
   # Prevent accidental deletion
   lifecycle {
@@ -63,9 +64,10 @@ resource "google_storage_bucket" "filemanager_buckets" {
   uniform_bucket_level_access = true
 
   labels = {
-    environment = var.environment
-    application = "filemanager"
-    managed_by  = "terraform"
+    environment   = var.environment
+    application   = "filemanager"
+    managed_by    = "terraform"
+    storage_class = lower(each.value.storage_class)
   }
 
   depends_on = [google_project_service.required_apis]
@@ -73,9 +75,9 @@ resource "google_storage_bucket" "filemanager_buckets" {
 
 # IAM binding for Cloud Storage buckets
 resource "google_storage_bucket_iam_member" "bucket_admin" {
-  for_each = toset(var.storage_buckets)
+  for_each = { for bucket in var.storage_buckets : bucket.name => bucket }
   
-  bucket = google_storage_bucket.filemanager_buckets[each.value].name
+  bucket = google_storage_bucket.filemanager_buckets[each.value.name].name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.github_actions.email}"
 }

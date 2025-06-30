@@ -26,7 +26,7 @@ Go to your GitHub repository: `Settings > Secrets and variables > Actions > Vari
 | `TERRAFORM_REGION` | GCP Region | `us-central1` | ✅ Yes |
 | `TERRAFORM_SERVICE_NAME` | Cloud Run Service Name | `filemanager` | ✅ Yes |
 | `TERRAFORM_ARTIFACT_REGISTRY_REPO` | Artifact Registry Repository | `filemanager-repo` | ✅ Yes |
-| `TERRAFORM_STORAGE_BUCKETS` | Storage Buckets (comma-separated) | `bucket1,bucket2,bucket3` | ✅ Yes |
+| `TERRAFORM_STORAGE_BUCKETS` | Storage Buckets (JSON format) | `[{"name":"bucket1","storage_class":"STANDARD"}]` | ✅ Yes |
 | `TERRAFORM_ENVIRONMENT` | Environment | `prod` | ✅ Yes |
 | `TERRAFORM_ENABLE_WORKLOAD_IDENTITY` | Enable Workload Identity | `true` | ✅ Yes |
 | `TERRAFORM_GITHUB_REPO` | GitHub Repository | `username/repository` | ⚠️ Optional* |
@@ -72,7 +72,8 @@ TERRAFORM_ARTIFACT_REGISTRY_REPO=filemanager-images
 
 # Storage Configuration (REQUIRED)
 # NOTE: Bucket names must be globally unique across all of GCP
-TERRAFORM_STORAGE_BUCKETS=my-unique-docs-bucket,my-unique-media-bucket,my-unique-backup-bucket
+# JSON format with storage classes:
+TERRAFORM_STORAGE_BUCKETS='[{"name":"my-unique-docs-bucket","storage_class":"STANDARD"},{"name":"my-unique-media-bucket","storage_class":"NEARLINE"},{"name":"my-unique-backup-bucket","storage_class":"COLDLINE"}]'
 
 # Security Configuration (REQUIRED)
 TERRAFORM_ENABLE_WORKLOAD_IDENTITY=true
@@ -102,7 +103,8 @@ gh variable set TERRAFORM_PROJECT_ID --body "YOUR-ACTUAL-PROJECT-ID"
 gh variable set TERRAFORM_REGION --body "us-central1"  # or your preferred region
 gh variable set TERRAFORM_SERVICE_NAME --body "filemanager"
 gh variable set TERRAFORM_ARTIFACT_REGISTRY_REPO --body "filemanager-repo"
-gh variable set TERRAFORM_STORAGE_BUCKETS --body "your-unique-bucket1,your-unique-bucket2,your-unique-bucket3"
+# JSON format (required)
+gh variable set TERRAFORM_STORAGE_BUCKETS --body '[{"name":"your-unique-bucket1","storage_class":"STANDARD"},{"name":"your-unique-bucket2","storage_class":"NEARLINE"}]'
 gh variable set TERRAFORM_ENVIRONMENT --body "prod"  # or dev/staging
 gh variable set TERRAFORM_ENABLE_WORKLOAD_IDENTITY --body "true"
 gh variable set TERRAFORM_GITHUB_REPO --body "yourusername/yourrepo"
@@ -133,6 +135,47 @@ Please either:
 
 See docs/GITHUB_VARIABLES_SETUP.md for detailed setup instructions
 ```
+
+## 🗄️ Storage Classes Guide
+
+When configuring `TERRAFORM_STORAGE_BUCKETS`, choose the appropriate storage class for your use case:
+
+### Storage Class Options
+
+| Storage Class | Access Frequency | Best For | Cost |
+|---------------|------------------|----------|------|
+| `STANDARD` | Frequently accessed | Active data, website content, streaming | Higher storage, lower access |
+| `NEARLINE` | Less than once/month | Backups, long-tail content | Lower storage, higher access |
+| `COLDLINE` | Less than once/quarter | Disaster recovery, archival | Much lower storage, high access |
+| `ARCHIVE` | Less than once/year | Long-term preservation | Lowest storage, highest access |
+
+### Configuration Examples
+
+**Mixed Storage Classes** (recommended):
+```json
+[
+  {"name":"myapp-active-data","storage_class":"STANDARD"},
+  {"name":"myapp-monthly-backups","storage_class":"NEARLINE"},
+  {"name":"myapp-archive","storage_class":"COLDLINE"}
+]
+```
+
+**Single Storage Class**:
+```json
+[
+  {"name":"myapp-bucket-1","storage_class":"STANDARD"},
+  {"name":"myapp-bucket-2","storage_class":"STANDARD"}
+]
+```
+
+**Custom Location** (optional):
+```json
+[
+  {"name":"myapp-eu-bucket","storage_class":"STANDARD","location":"europe-west1"}
+]
+```
+
+**Note**: If no `location` is specified, buckets will use the zone (if configured) or region from your Terraform configuration.
 
 ## Configuration Summary
 

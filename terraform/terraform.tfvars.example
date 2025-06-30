@@ -20,9 +20,21 @@ artifact_registry_repo = "filemanager-repo"  # Replace with your preferred repo 
 # Required: List of Cloud Storage buckets to create
 # IMPORTANT: Use unique bucket names - they must be globally unique across all of GCP
 storage_buckets = [
-  "YOUR-UNIQUE-BUCKET-1",      # Replace with your unique bucket names
-  "YOUR-UNIQUE-BUCKET-2", 
-  "YOUR-UNIQUE-BUCKET-3"
+  {
+    name          = "YOUR-UNIQUE-BUCKET-1"      # Replace with your unique bucket names
+    storage_class = "STANDARD"                 # Options: STANDARD, NEARLINE, COLDLINE, ARCHIVE
+    location      = null                       # null = use zone (if set) or region, or specify custom location
+  },
+  {
+    name          = "YOUR-UNIQUE-BUCKET-2"
+    storage_class = "NEARLINE"                 # More cost-effective for infrequently accessed data
+    location      = null
+  },
+  {
+    name          = "YOUR-UNIQUE-BUCKET-3"
+    storage_class = "COLDLINE"                 # Best for data accessed less than once per quarter
+    location      = "us-east1"                 # Custom location override
+  }
 ]
 
 # Required: Environment name

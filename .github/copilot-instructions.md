@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
 - `FIREBASE_SERVICE_ACCOUNT_KEY` (server-side only)
 - `GOOGLE_CLOUD_PROJECT_ID`
-- `ALLOWED_BUCKETS` (comma-separated list)
+- `ALLOWED_BUCKETS` (bucket names from terraform output)
 
 ## Deployment Notes
 - Configured for Google Cloud Run deployment

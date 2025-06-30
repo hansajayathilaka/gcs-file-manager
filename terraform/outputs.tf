@@ -21,15 +21,20 @@ output "artifact_registry_url" {
 }
 
 output "storage_buckets" {
-  description = "Map of created storage buckets"
+  description = "Map of created storage buckets with details"
   value = {
-    for bucket in google_storage_bucket.filemanager_buckets :
-    bucket.name => bucket.url
+    for bucket_name, bucket in google_storage_bucket.filemanager_buckets :
+    bucket_name => {
+      name          = bucket.name
+      url           = bucket.url
+      location      = bucket.location
+      storage_class = bucket.storage_class
+    }
   }
 }
 
 output "storage_bucket_names" {
-  description = "List of storage bucket names"
+  description = "List of storage bucket names (for ALLOWED_BUCKETS)"
   value       = [for bucket in google_storage_bucket.filemanager_buckets : bucket.name]
 }
 

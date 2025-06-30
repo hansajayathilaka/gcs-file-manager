@@ -34,7 +34,7 @@ on:
         default: ''
         type: string
       storage_buckets:
-        description: 'Storage Buckets (comma-separated) - Leave empty to use GitHub variable'
+        description: 'Storage Buckets (JSON format) - Example: [{"name":"bucket1","storage_class":"STANDARD"},{"name":"bucket2","storage_class":"NEARLINE"}]'
         required: false
         default: ''
         type: string
@@ -193,7 +193,7 @@ jobs:
         # Use input or GitHub variable for storage buckets
         BUCKETS_INPUT="${{ github.event.inputs.storage_buckets }}"
         if [ -z "$BUCKETS_INPUT" ]; then
-          BUCKETS_INPUT="${{ vars.TERRAFORM_STORAGE_BUCKETS || vars.ALLOWED_BUCKETS }}"
+          BUCKETS_INPUT="${{ vars.TERRAFORM_STORAGE_BUCKETS }}"
         fi
         
         # Require explicit bucket configuration
@@ -201,27 +201,41 @@ jobs:
           echo "❌ ERROR: Storage buckets must be configured!"
           echo ""
           echo "Please either:"
-          echo "1. Set TERRAFORM_STORAGE_BUCKETS GitHub Variable (comma-separated list)"
-          echo "2. Provide storage_buckets input when running this workflow"
+          echo "1. Set TERRAFORM_STORAGE_BUCKETS GitHub Variable (JSON format)"
+          echo "2. Provide storage_buckets input when running this workflow (JSON format)"
           echo ""
-          echo "Example: bucket1,bucket2,bucket3"
-          echo "See docs/GITHUB_VARIABLES_SETUP.md for setup instructions"
+          echo "Required JSON Format:"
+          echo '[{"name":"bucket1","storage_class":"STANDARD"},{"name":"bucket2","storage_class":"NEARLINE"}]'
+          echo ""
+          echo "Storage class options: STANDARD, NEARLINE, COLDLINE, ARCHIVE"
+          echo "See docs/GITHUB_VARIABLES_SETUP.md for detailed setup instructions"
           exit 1
         fi
         
         echo "Raw buckets input: $BUCKETS_INPUT"
         
-        # Validate buckets list is not empty after trimming
-        BUCKETS_CLEAN=$(echo "$BUCKETS_INPUT" | tr -d ' ')
-        if [ -z "$BUCKETS_CLEAN" ]; then
-          echo "❌ ERROR: Storage buckets list is empty after processing!"
+        # Validate JSON format
+        if ! echo "$BUCKETS_INPUT" | jq empty 2>/dev/null; then
+          echo "❌ ERROR: Invalid JSON format for storage buckets!"
+          echo ""
+          echo "Expected format:"
+          echo '[{"name":"bucket1","storage_class":"STANDARD"},{"name":"bucket2","storage_class":"NEARLINE"}]'
+          echo ""
+          echo "Storage class options: STANDARD, NEARLINE, COLDLINE, ARCHIVE"
           exit 1
         fi
         
-        # Convert to JSON array format for Terraform
-        BUCKETS_JSON=$(echo "$BUCKETS_CLEAN" | sed 's/,/","/g' | sed 's/^/["/' | sed 's/$/"]/')
-        echo "TF_VAR_storage_buckets=$BUCKETS_JSON" >> $GITHUB_ENV
-        echo "Processed buckets: $BUCKETS_JSON"
+        # Validate required fields in each bucket object
+        if ! echo "$BUCKETS_INPUT" | jq -e 'all(.[]; has("name") and has("storage_class"))' >/dev/null 2>&1; then
+          echo "❌ ERROR: Each bucket must have 'name' and 'storage_class' fields!"
+          echo ""
+          echo "Example:"
+          echo '[{"name":"my-bucket","storage_class":"STANDARD"}]'
+          exit 1
+        fi
+        
+        echo "TF_VAR_storage_buckets=$BUCKETS_INPUT" >> $GITHUB_ENV
+        echo "✅ Valid bucket configuration: $BUCKETS_INPUT"
 
     - name: Display Configuration Summary
       run: |
@@ -237,9 +251,9 @@ jobs:
         echo "| Workload Identity | ${{ env.TF_VAR_enable_workload_identity }} | ${{ github.event.inputs.enable_workload_identity && 'Manual Input' || vars.TERRAFORM_ENABLE_WORKLOAD_IDENTITY && 'GitHub Variable (TERRAFORM_ENABLE_WORKLOAD_IDENTITY)' || 'Default' }} |" >> $GITHUB_STEP_SUMMARY
         echo "| GitHub Repository | ${{ env.TF_VAR_github_repo }} | ${{ github.event.inputs.github_repo && 'Manual Input' || vars.TERRAFORM_GITHUB_REPO && 'GitHub Variable (TERRAFORM_GITHUB_REPO)' || 'Auto-detected' }} |" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Storage Buckets" >> $GITHUB_STEP_SUMMARY
+        echo "### Storage Buckets Configuration" >> $GITHUB_STEP_SUMMARY
         echo '```json' >> $GITHUB_STEP_SUMMARY
-        echo "${{ env.TF_VAR_storage_buckets }}" >> $GITHUB_STEP_SUMMARY
+        echo "$TF_VAR_storage_buckets" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -249,15 +263,52 @@ jobs:
 
     - name: Terraform Validate
       working-directory: terraform
-      run: terraform validate
+      run: |
+        echo "🔍 Validating Terraform configuration..."
+        terraform validate
+        if [ $? -ne 0 ]; then
+          echo "❌ ERROR: Terraform configuration validation failed!"
+          echo ""
+          echo "This indicates a syntax or configuration error in the Terraform files."
+          echo "Please check the error messages above and fix the configuration."
+          echo ""
+          echo "Common issues:"
+          echo "- Invalid variable validation conditions"
+          echo "- Syntax errors in .tf files"
+          echo "- Missing required providers or modules"
+          exit 1
+        fi
+        echo "✅ Terraform configuration is valid"
 
     - name: Terraform Plan
       if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
       working-directory: terraform
       run: |
+        echo "📋 Generating Terraform plan..."
         terraform plan -detailed-exitcode -out=tfplan
-        echo "Plan completed. Exit code: $?"
-      continue-on-error: true
+        PLAN_EXIT_CODE=$?
+        
+        echo "Plan completed with exit code: $PLAN_EXIT_CODE"
+        
+        if [ $PLAN_EXIT_CODE -eq 1 ]; then
+          echo "❌ ERROR: Terraform plan failed!"
+          echo ""
+          echo "This usually indicates:"
+          echo "- Authentication issues with GCP"
+          echo "- Missing required variables or configuration"
+          echo "- Invalid resource configurations"
+          echo "- Insufficient permissions"
+          echo ""
+          echo "Please check the error messages above and verify:"
+          echo "1. All required GitHub Variables are set correctly"
+          echo "2. Authentication (Workload Identity or Service Account Key) is working"
+          echo "3. The service account has necessary permissions"
+          exit 1
+        elif [ $PLAN_EXIT_CODE -eq 2 ]; then
+          echo "📝 Plan generated successfully with changes to apply"
+        else
+          echo "✅ Plan generated successfully with no changes"
+        fi
 
     - name: Save Terraform Plan
       if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
