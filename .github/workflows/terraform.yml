@@ -669,7 +669,22 @@ jobs:
           echo "Go to: **Settings > Secrets and variables > Actions > Variables**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          terraform output -json github_variables | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
+          
+          # Change to terraform directory and get outputs with better error handling
+          if cd terraform 2>/dev/null && terraform output github_variables >/dev/null 2>&1; then
+            echo "# Copy these GitHub Variables:" >> $GITHUB_STEP_SUMMARY
+            terraform output -json github_variables | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "# GitHub Variables (use these values after terraform apply completes):" >> $GITHUB_STEP_SUMMARY
+            echo "GCP_PROJECT_ID=${{ env.TF_VAR_project_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "GCP_REGION=${{ env.TF_VAR_region }}" >> $GITHUB_STEP_SUMMARY
+            echo "CLOUD_RUN_SERVICE_NAME=${{ env.TF_VAR_service_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "ARTIFACT_REGISTRY_REPO=${{ env.TF_VAR_artifact_registry_repo }}" >> $GITHUB_STEP_SUMMARY
+            echo "ALLOWED_BUCKETS=$(echo \"$TF_VAR_storage_buckets\" | jq -r '.[].name' | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_STEP_SUMMARY
+            echo "NEXTAUTH_URL=https://${{ env.TF_VAR_service_name }}-xxxxxxxxxx-${{ env.TF_VAR_region }}.a.run.app" >> $GITHUB_STEP_SUMMARY
+          fi
+          cd - >/dev/null 2>&1 || true
+          
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
@@ -682,14 +697,35 @@ jobs:
           if [ "${{ env.TF_VAR_enable_workload_identity }}" = "true" ]; then
             echo "**Workload Identity Secrets (Recommended):**" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
-            terraform output -json github_secrets_workload_identity | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
+            
+            if cd terraform 2>/dev/null && terraform output github_secrets_workload_identity >/dev/null 2>&1; then
+              echo "# Copy these GitHub Secrets:" >> $GITHUB_STEP_SUMMARY
+              terraform output -json github_secrets_workload_identity | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
+            else
+              echo "# Workload Identity Secrets (get exact values from 'terraform output' after apply):" >> $GITHUB_STEP_SUMMARY
+              echo "WIF_PROVIDER=projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider" >> $GITHUB_STEP_SUMMARY
+              echo "WIF_SERVICE_ACCOUNT=github-actions-sa@${{ env.TF_VAR_project_id }}.iam.gserviceaccount.com" >> $GITHUB_STEP_SUMMARY
+            fi
+            cd - >/dev/null 2>&1 || true
+            
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "**Service Account Key Secret:**" >> $GITHUB_STEP_SUMMARY
             echo '```bash' >> $GITHUB_STEP_SUMMARY
-            echo "GCP_SERVICE_ACCOUNT_KEY=(from terraform output service_account_key)"
+            echo "# Get service account key from terraform output:" >> $GITHUB_STEP_SUMMARY
+            echo "GCP_SERVICE_ACCOUNT_KEY=\$(cd terraform && terraform output -raw service_account_key)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "**Additional Secrets (Firebase/Application):**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "FIREBASE_SERVICE_ACCOUNT_KEY=your-firebase-service-account-key-json" >> $GITHUB_STEP_SUMMARY
+          echo "NEXTAUTH_SECRET=\$(openssl rand -base64 32)" >> $GITHUB_STEP_SUMMARY
+          echo "NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key" >> $GITHUB_STEP_SUMMARY
+          echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com" >> $GITHUB_STEP_SUMMARY
+          echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-firebase-project-id" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
         
