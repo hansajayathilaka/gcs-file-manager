@@ -330,9 +330,50 @@ jobs:
         sleep 30
         echo "✅ API propagation wait completed"
 
+    - name: Debug Environment Variables
+      if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
+      working-directory: terraform
+      run: |
+        echo "🔍 Debug: Environment variables for import step"
+        echo "TF_VAR_project_id: '$TF_VAR_project_id'"
+        echo "TF_VAR_region: '$TF_VAR_region'"
+        echo "TF_VAR_service_name: '$TF_VAR_service_name'"
+        echo "TF_VAR_artifact_registry_repo: '$TF_VAR_artifact_registry_repo'"
+        echo ""
+        echo "TF_VAR_storage_buckets (raw):"
+        echo "'$TF_VAR_storage_buckets'"
+        echo ""
+        echo "TF_VAR_storage_buckets (with cat -A to show hidden chars):"
+        echo "$TF_VAR_storage_buckets" | cat -A
+        echo ""
+        echo "Testing jq parsing:"
+        if echo "$TF_VAR_storage_buckets" | jq empty 2>/dev/null; then
+          echo "✅ JSON is valid"
+          echo "$TF_VAR_storage_buckets" | jq '.'
+          echo "Bucket names:"
+          echo "$TF_VAR_storage_buckets" | jq -r '.[].name'
+        else
+          echo "❌ JSON is invalid"
+          echo "Attempting to show jq error:"
+          echo "$TF_VAR_storage_buckets" | jq empty
+        fi
+      env:
+        TF_VAR_project_id: ${{ env.TF_VAR_project_id }}
+        TF_VAR_region: ${{ env.TF_VAR_region }}
+        TF_VAR_service_name: ${{ env.TF_VAR_service_name }}
+        TF_VAR_artifact_registry_repo: ${{ env.TF_VAR_artifact_registry_repo }}
+        TF_VAR_storage_buckets: ${{ env.TF_VAR_storage_buckets }}
+
     - name: Import Existing Resources (if needed)
       if: github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'
       working-directory: terraform
+      env:
+        TF_VAR_project_id: ${{ env.TF_VAR_project_id }}
+        TF_VAR_region: ${{ env.TF_VAR_region }}
+        TF_VAR_service_name: ${{ env.TF_VAR_service_name }}
+        TF_VAR_artifact_registry_repo: ${{ env.TF_VAR_artifact_registry_repo }}
+        TF_VAR_storage_buckets: ${{ env.TF_VAR_storage_buckets }}
+        TF_VAR_enable_workload_identity: ${{ env.TF_VAR_enable_workload_identity }}
       run: |
         echo "🔄 Checking for existing resources that need to be imported..."
         echo "This step prevents 409 'already exists' errors when resources were created outside Terraform"
@@ -364,10 +405,10 @@ jobs:
         }
         
         # Set variables for easier reference
-        PROJECT_ID="${{ env.TF_VAR_project_id }}"
-        REGION="${{ env.TF_VAR_region }}"
-        REPO_NAME="${{ env.TF_VAR_artifact_registry_repo }}"
-        SERVICE_NAME="${{ env.TF_VAR_service_name }}"
+        PROJECT_ID="$TF_VAR_project_id"
+        REGION="$TF_VAR_region"
+        REPO_NAME="$TF_VAR_artifact_registry_repo"
+        SERVICE_NAME="$TF_VAR_service_name"
         
         echo "Using configuration:"
         echo "  Project ID: $PROJECT_ID"
@@ -388,7 +429,7 @@ jobs:
           "GitHub Actions Service Account"
         
         # Import Workload Identity Pool (if enabled)
-        if [ "${{ env.TF_VAR_enable_workload_identity }}" = "true" ]; then
+        if [ "$TF_VAR_enable_workload_identity" = "true" ]; then
           import_if_exists \
             "google_iam_workload_identity_pool.github_pool[0]" \
             "projects/$PROJECT_ID/locations/global/workloadIdentityPools/github-actions-pool" \
@@ -403,21 +444,49 @@ jobs:
         # Import storage buckets with robust handling for map-based resources
         echo ""
         echo "🪣 Importing storage buckets (critical for avoiding 409 conflicts)..."
-        BUCKETS_JSON="${{ env.TF_VAR_storage_buckets }}"
+        BUCKETS_JSON="$TF_VAR_storage_buckets"
+        
+        # Debug: Show raw JSON content
+        echo "Raw BUCKETS_JSON:"
+        echo "'$BUCKETS_JSON'"
+        
+        # Normalize JSON by removing extra whitespace and formatting
+        BUCKETS_JSON_NORMALIZED=$(echo "$BUCKETS_JSON" | tr -d '\n\r' | sed 's/[ ]*//g' | sed 's/[[:space:]]\+/ /g' | xargs)
+        echo "Normalized BUCKETS_JSON:"
+        echo "'$BUCKETS_JSON_NORMALIZED'"
         
         # Pre-validate JSON and extract bucket names
-        if ! echo "$BUCKETS_JSON" | jq empty 2>/dev/null; then
-          echo "❌ Invalid buckets JSON, skipping bucket import"
+        if ! echo "$BUCKETS_JSON_NORMALIZED" | jq empty 2>/dev/null; then
+          echo "❌ Invalid buckets JSON after normalization, trying original..."
+          
+          # Try original JSON in case normalization broke it
+          if ! echo "$BUCKETS_JSON" | jq empty 2>/dev/null; then
+            echo "❌ Invalid buckets JSON (both normalized and original), skipping bucket import"
+            echo "Original JSON content: '$BUCKETS_JSON'"
+            echo "Normalized JSON content: '$BUCKETS_JSON_NORMALIZED'"
+          else
+            echo "✅ Original JSON is valid, using that"
+            BUCKETS_JSON_NORMALIZED="$BUCKETS_JSON"
+          fi
         else
+          echo "✅ Normalized JSON is valid"
+        fi
+        
+        # Proceed with import if we have valid JSON
+        if echo "$BUCKETS_JSON_NORMALIZED" | jq empty 2>/dev/null; then
           echo "Valid JSON detected, extracting bucket names..."
+          echo "Final buckets JSON: $BUCKETS_JSON_NORMALIZED"
           
-          # Extract bucket names into a bash array (avoid pipe subshell issues)
-          bucket_names=($(echo "$BUCKETS_JSON" | jq -r '.[].name'))
+          # Extract bucket names using the normalized JSON
+          BUCKET_NAMES_LIST=$(echo "$BUCKETS_JSON_NORMALIZED" | jq -r '.[].name' | tr '\n' ' ')
+          echo "Extracted bucket names: $BUCKET_NAMES_LIST"
           
-          echo "Found ${#bucket_names[@]} buckets to check: ${bucket_names[*]}"
+          # Convert to array for processing
+          BUCKET_NAMES_ARRAY=($BUCKET_NAMES_LIST)
+          echo "Processing ${#BUCKET_NAMES_ARRAY[@]} buckets: ${BUCKET_NAMES_ARRAY[*]}"
           
-          # Import each bucket using proper bash array iteration
-          for bucket_name in "${bucket_names[@]}"; do
+          # Process each bucket
+          for bucket_name in "${BUCKET_NAMES_ARRAY[@]}"; do
             if [ -n "$bucket_name" ] && [ "$bucket_name" != "null" ]; then
               echo ""
               echo "🔍 Processing bucket: $bucket_name"
@@ -426,10 +495,18 @@ jobs:
               echo "   Checking if bucket exists in GCS..."
               if gsutil ls -b "gs://$bucket_name" >/dev/null 2>&1; then
                 echo "   📦 Bucket exists in GCS, importing to Terraform..."
-                import_if_exists \
-                  "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" \
-                  "$bucket_name" \
-                  "Storage Bucket: $bucket_name"
+                
+                # Check if already in state first
+                if terraform state show "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" >/dev/null 2>&1; then
+                  echo "   ✅ Bucket already in Terraform state - skipping"
+                else
+                  echo "   🔄 Attempting to import bucket..."
+                  if terraform import "google_storage_bucket.filemanager_buckets[\"$bucket_name\"]" "$bucket_name" 2>&1; then
+                    echo "   ✅ Successfully imported Storage Bucket: $bucket_name"
+                  else
+                    echo "   ⚠️  Failed to import bucket: $bucket_name (this might cause 409 errors)"
+                  fi
+                fi
               else
                 echo "   ℹ️  Bucket doesn't exist in GCS yet, will be created by Terraform"
               fi
@@ -437,6 +514,9 @@ jobs:
               echo "   ⚠️  Skipping invalid bucket name: '$bucket_name'"
             fi
           done
+        else
+          echo "❌ Could not process buckets JSON - skipping bucket imports"
+          echo "This may result in 409 'already exists' errors if buckets exist"
         fi
         
         # Import Cloud Run service
