@@ -522,9 +522,14 @@ jobs:
         # Import Cloud Run service
         echo ""
         echo "🚀 Importing Cloud Run service..."
+        
+        # Cloud Run import uses a different format than other GCP resources
+        # Format: locations/{region}/namespaces/{project}/services/{service_name}
+        CLOUD_RUN_IMPORT_ID="locations/$REGION/namespaces/$PROJECT_ID/services/$SERVICE_NAME"
+        
         import_if_exists \
           "google_cloud_run_service.filemanager" \
-          "projects/$PROJECT_ID/locations/$REGION/services/$SERVICE_NAME" \
+          "$CLOUD_RUN_IMPORT_ID" \
           "Cloud Run Service: $SERVICE_NAME"
         
         echo ""
