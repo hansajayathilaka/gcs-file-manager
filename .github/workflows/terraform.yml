@@ -683,14 +683,31 @@ jobs:
         echo "- **GitHub Repository**: ${{ env.TF_VAR_github_repo }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
+        # Always output the current storage bucket configuration for easy reuse
+        echo "### 📦 Storage Buckets Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Current bucket configuration (copy this for TERRAFORM_STORAGE_BUCKETS GitHub Variable):**" >> $GITHUB_STEP_SUMMARY
+        echo '```json' >> $GITHUB_STEP_SUMMARY
+        echo "$TF_VAR_storage_buckets" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**To reuse this configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "1. Go to: Settings > Secrets and variables > Actions > Variables" >> $GITHUB_STEP_SUMMARY
+        echo "2. Create/update variable: \`TERRAFORM_STORAGE_BUCKETS\`" >> $GITHUB_STEP_SUMMARY
+        echo "3. Paste the JSON above as the value" >> $GITHUB_STEP_SUMMARY
+        echo "4. Future workflow runs will automatically use this configuration" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
         if [ "${{ github.event.inputs.action }}" = "apply" ]; then
           echo "✅ **Infrastructure successfully provisioned!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Next steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Configure GitHub Secrets and Variables using the outputs above" >> $GITHUB_STEP_SUMMARY
-          echo "2. Run the deployment workflow to deploy your application" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Save the bucket configuration above as TERRAFORM_STORAGE_BUCKETS GitHub Variable**" >> $GITHUB_STEP_SUMMARY
+          echo "2. Configure other GitHub Secrets and Variables using the outputs above" >> $GITHUB_STEP_SUMMARY
+          echo "3. Run the deployment workflow to deploy your application" >> $GITHUB_STEP_SUMMARY
         elif [ "${{ github.event.inputs.action }}" = "plan" ]; then
           echo "📋 **Plan generated successfully**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Review the plan above and run with 'apply' action to provision infrastructure." >> $GITHUB_STEP_SUMMARY
+          echo "**Tip:** Save the bucket configuration above as a GitHub Variable for future runs!" >> $GITHUB_STEP_SUMMARY
         fi

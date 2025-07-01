@@ -47,6 +47,9 @@ All infrastructure settings must be explicitly configured. No hard-coded default
 - **TERRAFORM_SERVICE_NAME** - Cloud Run service name
 - **TERRAFORM_ARTIFACT_REGISTRY_REPO** - Docker repository name
 - **TERRAFORM_STORAGE_BUCKETS** - JSON array of bucket configurations with storage classes
+  
+  > 💡 **Tip**: Don't know the JSON format? Run the Terraform workflow once with manual input, then copy the perfectly formatted JSON from the workflow summary to use as a GitHub Variable for future runs!
+
 - **TERRAFORM_ENVIRONMENT** - Environment: dev, staging, or prod
 - **TERRAFORM_ENABLE_WORKLOAD_IDENTITY** - true (recommended) or false
 - **TERRAFORM_GITHUB_REPO** - Your GitHub repository (owner/repo format)

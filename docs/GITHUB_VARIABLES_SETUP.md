@@ -160,6 +160,50 @@ When configuring `TERRAFORM_STORAGE_BUCKETS`, choose the appropriate storage cla
 | `COLDLINE` | Less than once/quarter | Disaster recovery, archival | Much lower storage, high access |
 | `ARCHIVE` | Less than once/year | Long-term preservation | Lowest storage, highest access |
 
+## 🔄 Copying Configuration from Workflow Output
+
+**Easiest Way to Set TERRAFORM_STORAGE_BUCKETS**: After running the Terraform workflow (plan or apply), the bucket configuration is displayed in the workflow summary for easy copying.
+
+### Step-by-Step Process
+
+1. **Run the Terraform workflow** (even with `plan` action)
+2. **Check the workflow summary** at the bottom of the workflow run page
+3. **Look for the "📦 Storage Buckets Configuration" section**
+4. **Copy the JSON** from the code block
+5. **Set as GitHub Variable**:
+   - Go to: `Settings > Secrets and variables > Actions > Variables`
+   - Create/update variable: `TERRAFORM_STORAGE_BUCKETS`
+   - Paste the JSON as the value
+   - Click "Add variable"
+
+### What This Achieves
+
+- **No manual JSON formatting** - the workflow outputs perfectly formatted JSON
+- **No typos or syntax errors** - the configuration is generated automatically
+- **Persistent for future runs** - once set as a GitHub Variable, future workflows use it automatically
+- **Team consistency** - everyone uses the same bucket configuration
+
+### Example Workflow Output
+
+The workflow summary will show something like this:
+
+```markdown
+### 📦 Storage Buckets Configuration
+
+**Current bucket configuration (copy this for TERRAFORM_STORAGE_BUCKETS GitHub Variable):**
+```json
+[{"name":"myproject-docs-bucket","storage_class":"STANDARD"},{"name":"myproject-media-bucket","storage_class":"NEARLINE"}]
+```
+
+**To reuse this configuration:**
+1. Go to: Settings > Secrets and variables > Actions > Variables
+2. Create/update variable: `TERRAFORM_STORAGE_BUCKETS`
+3. Paste the JSON above as the value
+4. Future workflow runs will automatically use this configuration
+```
+
+This eliminates the need to manually format JSON or remember bucket configurations for future deployments.
+
 ### Configuration Examples
 
 **For GitHub Variables (strict JSON required)**:
