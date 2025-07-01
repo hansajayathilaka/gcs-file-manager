@@ -634,32 +634,6 @@ jobs:
         echo '```json' >> $GITHUB_STEP_SUMMARY
         terraform output -json >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        
-        # Extract specific outputs for GitHub configuration
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## GitHub Configuration" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        # GitHub Variables
-        echo "### GitHub Variables to Configure:" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        terraform output -json github_variables | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        
-        # GitHub Secrets for Workload Identity
-        if [ "${{ env.TF_VAR_enable_workload_identity }}" = "true" ]; then
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### GitHub Secrets for Workload Identity:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          terraform output -json github_secrets_workload_identity | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        else
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### GitHub Secrets for Service Account Key:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "GCP_SERVICE_ACCOUNT_KEY=(from terraform output service_account_key)"
-          echo '```' >> $GITHUB_STEP_SUMMARY
-        fi
 
     - name: Upload Terraform Plan Artifact
       if: github.event.inputs.action == 'plan'
@@ -683,7 +657,43 @@ jobs:
         echo "- **GitHub Repository**: ${{ env.TF_VAR_github_repo }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        # Always output the current storage bucket configuration for easy reuse
+        if [ "${{ github.event.inputs.action }}" = "apply" ] || [ "${{ github.event.inputs.action }}" = "output" ]; then
+          echo "## 🔧 GitHub Configuration Setup" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "After successful infrastructure provisioning, configure your GitHub repository with these settings:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # GitHub Variables from Terraform outputs
+          echo "### 📝 GitHub Variables to Configure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Go to: **Settings > Secrets and variables > Actions > Variables**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          terraform output -json github_variables | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # GitHub Secrets
+          echo "### 🔐 GitHub Secrets to Configure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Go to: **Settings > Secrets and variables > Actions > Secrets**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ env.TF_VAR_enable_workload_identity }}" = "true" ]; then
+            echo "**Workload Identity Secrets (Recommended):**" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            terraform output -json github_secrets_workload_identity | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Service Account Key Secret:**" >> $GITHUB_STEP_SUMMARY
+            echo '```bash' >> $GITHUB_STEP_SUMMARY
+            echo "GCP_SERVICE_ACCOUNT_KEY=(from terraform output service_account_key)"
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Always show storage bucket configuration for easy copying
         echo "### 📦 Storage Buckets Configuration" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Current bucket configuration (copy this for TERRAFORM_STORAGE_BUCKETS GitHub Variable):**" >> $GITHUB_STEP_SUMMARY
@@ -692,22 +702,29 @@ jobs:
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**To reuse this configuration:**" >> $GITHUB_STEP_SUMMARY
-        echo "1. Go to: Settings > Secrets and variables > Actions > Variables" >> $GITHUB_STEP_SUMMARY
+        echo "1. Go to: **Settings > Secrets and variables > Actions > Variables**" >> $GITHUB_STEP_SUMMARY
         echo "2. Create/update variable: \`TERRAFORM_STORAGE_BUCKETS\`" >> $GITHUB_STEP_SUMMARY
         echo "3. Paste the JSON above as the value" >> $GITHUB_STEP_SUMMARY
         echo "4. Future workflow runs will automatically use this configuration" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ "${{ github.event.inputs.action }}" = "apply" ]; then
-          echo "✅ **Infrastructure successfully provisioned!**" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Infrastructure Successfully Provisioned!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Next steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. **Save the bucket configuration above as TERRAFORM_STORAGE_BUCKETS GitHub Variable**" >> $GITHUB_STEP_SUMMARY
-          echo "2. Configure other GitHub Secrets and Variables using the outputs above" >> $GITHUB_STEP_SUMMARY
-          echo "3. Run the deployment workflow to deploy your application" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. **📦 Save the bucket configuration above** as \`TERRAFORM_STORAGE_BUCKETS\` GitHub Variable" >> $GITHUB_STEP_SUMMARY
+          echo "2. **🔧 Configure GitHub Variables and Secrets** using the values shown above" >> $GITHUB_STEP_SUMMARY
+          echo "3. **🚀 Run the deployment workflow** to deploy your application to Cloud Run" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All GitHub configuration values are provided above for easy copy/paste setup!" >> $GITHUB_STEP_SUMMARY
         elif [ "${{ github.event.inputs.action }}" = "plan" ]; then
-          echo "📋 **Plan generated successfully**" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Plan Generated Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Review the plan above and run with 'apply' action to provision infrastructure." >> $GITHUB_STEP_SUMMARY
-          echo "**Tip:** Save the bucket configuration above as a GitHub Variable for future runs!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "💡 **Tip:** Save the bucket configuration above as a GitHub Variable for future runs!" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ github.event.inputs.action }}" = "output" ]; then
+          echo "## 📤 Configuration Outputs Ready" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Use the GitHub Variables and Secrets configuration above to complete your setup." >> $GITHUB_STEP_SUMMARY
         fi
