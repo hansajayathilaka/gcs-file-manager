@@ -1,49 +1,34 @@
-# Terraform configuration file for FileManager project
-# Copy this file to terraform.tfvars and customize the values
-# ALL VALUES ARE REQUIRED - no defaults are provided for security
+# Example Terraform variables file - SAFE FOR PUBLIC REPOS
+# This file shows the structure but contains no real data
+# NEVER commit actual values to this public repository!
+# All real values are provided dynamically by GitHub Actions workflows
 
-# Required: Your GCP Project ID
-project_id = "YOUR-PROJECT-ID"  # Replace with your actual GCP project ID
+# Basic Configuration (provided by workflow inputs)
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+service_name = "filemanager"
+artifact_registry_repo = "filemanager-repo"
+environment = "prod"
 
-# Required: GCP Region for resources
-region = "us-central1"  # Replace with your preferred region
+# GitHub Configuration (automatically set by workflows)
+github_repo = "owner/repo-name"
+enable_workload_identity = true
 
-# Optional: GCP Zone (will default to {region}-a if not specified)
-# zone = "us-central1-a"
-
-# Required: Cloud Run service name
-service_name = "filemanager"  # Replace with your preferred service name
-
-# Required: Artifact Registry repository name
-artifact_registry_repo = "filemanager-repo"  # Replace with your preferred repo name
-
-# Required: List of Cloud Storage buckets to create
-# IMPORTANT: Use unique bucket names - they must be globally unique across all of GCP
+# Storage Buckets (dynamically generated from workflow inputs)
+# Format: [{"name":"bucket1","class":"STANDARD"},{"name":"bucket2","class":"NEARLINE"}]
 storage_buckets = [
   {
-    name          = "YOUR-UNIQUE-BUCKET-1"      # Replace with your unique bucket names
-    storage_class = "STANDARD"                 # Options: STANDARD, NEARLINE, COLDLINE, ARCHIVE
-    location      = null                       # null = use zone (if set) or region, or specify custom location
+    name  = "example-bucket-1"
+    class = "STANDARD"
   },
   {
-    name          = "YOUR-UNIQUE-BUCKET-2"
-    storage_class = "NEARLINE"                 # More cost-effective for infrequently accessed data
-    location      = null
-  },
-  {
-    name          = "YOUR-UNIQUE-BUCKET-3"
-    storage_class = "COLDLINE"                 # Best for data accessed less than once per quarter
-    location      = "us-east1"                 # Custom location override
+    name  = "example-bucket-2" 
+    class = "NEARLINE"
   }
 ]
 
-# Required: Environment name
-environment = "prod"  # Choose: dev, staging, or prod
-
-# Required for Workload Identity: GitHub repository in format "owner/repo"
-# Example: "username/filemanager" or "organization/filemanager"
-github_repo = "YOUR-USERNAME/YOUR-REPO"  # Replace with your GitHub repo
-
-# Required: Enable Workload Identity (recommended for security)
-# Set to false only if you prefer to use service account keys
-enable_workload_identity = true
+# SECURITY NOTICE:
+# - This example file is safe for public repositories
+# - Real values are provided securely via GitHub Actions
+# - No sensitive data is stored in repository files
+# - terraform.tfvars is in .gitignore to prevent accidental commits

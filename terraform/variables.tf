@@ -1,53 +1,50 @@
-# Variables for the FileManager infrastructure
-
 variable "project_id" {
-  description = "The GCP project ID"
+  description = "GCP Project ID"
   type        = string
-  # No default - must be provided via GitHub Variables or manual input
-  
-  validation {
-    condition     = length(var.project_id) > 0
-    error_message = "Project ID must be provided. Set TERRAFORM_PROJECT_ID GitHub Variable or provide manual input."
-  }
 }
 
 variable "region" {
-  description = "The GCP region for resources"
+  description = "GCP Region"
   type        = string
-  # No default - must be provided via GitHub Variables or manual input
-  
-  validation {
-    condition     = length(var.region) > 0
-    error_message = "Region must be provided. Set TERRAFORM_REGION GitHub Variable or provide manual input."
-  }
-}
-
-variable "zone" {
-  description = "The GCP zone for resources"
-  type        = string
-  default     = null
-  
-  validation {
-    condition     = var.zone == null || (var.zone != null && var.zone != "")
-    error_message = "Zone must be a valid GCP zone if provided."
-  }
+  default     = "us-central1"
 }
 
 variable "service_name" {
-  description = "Name of the Cloud Run service"
+  description = "Cloud Run Service Name"
   type        = string
-  # No default - must be provided via GitHub Variables or manual input
-  
-  validation {
-    condition     = length(var.service_name) > 0
-    error_message = "Service name must be provided. Set TERRAFORM_SERVICE_NAME GitHub Variable or provide manual input."
-  }
+  default     = "filemanager"
 }
 
 variable "artifact_registry_repo" {
-  description = "Name of the Artifact Registry repository"
+  description = "Artifact Registry Repository Name"
   type        = string
-  # No default - must be provided via GitHub Variables or manual input
+  default     = "filemanager-repo"
+}
+
+variable "storage_buckets" {
+  description = "Storage bucket configurations"
+  type = list(object({
+    name  = string
+    class = string
+  }))
+}
+
+variable "environment" {
+  description = "Environment"
+  type        = string
+  default     = "prod"
+}
+
+variable "github_repo" {
+  description = "GitHub repository (owner/repo)"
+  type        = string
+}
+
+variable "enable_workload_identity" {
+  description = "Enable Workload Identity"
+  type        = bool
+  default     = true
+}
   
   validation {
     condition     = length(var.artifact_registry_repo) > 0

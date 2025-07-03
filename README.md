@@ -1,174 +1,191 @@
-# GCS File Manager
+# FileManager - Secure GCS File Management
 
-A modern Next.js application for managing Google Cloud Storage (GCS) buckets with Firebase authentication. Features a three-panel layout with persistent file preview, streaming video support, and comprehensive file management capabilities.
+A Next.js application for managing Google Cloud Storage buckets with Firebase authentication. Deployed on Google Cloud Run with Infrastructure as Code (Terraform).
 
-## ✨ Features
+## 🔒 Security First
 
-- 🔐 **Firebase Authentication** - Email/password and Google OAuth sign-in
-- 📁 **GCS Bucket Management** - List, upload, delete files with folder support
-- 🗂️ **Three-Panel Layout** - Persistent file preview (not modal popup)
-- 🎥 **Video Streaming** - HTTP range requests for large video files
-- 📱 **Multi-Format Preview** - Images, videos, audio, text files, metadata
-- 🧭 **Folder Navigation** - Create folders, breadcrumb navigation
-- 🚀 **Cloud Run Ready** - Optimized for Google Cloud Run deployment
-- � **Bulk Operations** - Multi-select, bulk download, bulk delete
-- 🎨 **Modern UI** - Responsive design with Tailwind CSS
-- 🔒 **Secure** - Workload Identity and proper authentication
+This is a **public repository** designed to be safely shared:
+- ✅ **No sensitive data in repository files**
+- ✅ **All configuration stored in GitHub Variables/Secrets**
+- ✅ **Terraform state managed remotely in GCS**
+- ✅ **Workload Identity for keyless authentication**
 
-## 🚀 Quick Start
+## 🚀 Quick Start (4 Simple Workflows)
 
-1. **Clone and install dependencies:**
-```bash
-git clone https://github.com/your-username/FileManager.git
-cd FileManager
-npm install
-```
+### 1️⃣ Initial Setup
+**Workflow: `setup.yml`**
+- Go to **Actions** tab → **"1️⃣ Initial Setup"** → **"Run workflow"**
+- Provide: Project ID, Region, Initial bucket names, Storage classes
+- Creates infrastructure, state bucket, and provides configuration guide
 
-2. **Set up environment variables:**
-```bash
-cp .env.local.example .env.local
-# Edit .env.local with your Firebase and GCP configuration
-```
+### 🪣 Add Storage Buckets
+**Workflow: `add-buckets.yml`**
+- Go to **Actions** tab → **"🪣 Add Storage Buckets"** → **"Run workflow"**
+- Provide: New bucket names and storage classes
+- Adds buckets to existing infrastructure
+- **Secure**: Bucket names never stored in repository files
 
-3. **Run development server:**
-```bash
-npm run dev
-```
+### 🔧 Update Infrastructure
+**Workflow: `update-infrastructure.yml`**
+- Go to **Actions** tab → **"🔧 Update Infrastructure"** → **"Run workflow"**
+- Plan/Apply infrastructure changes (service accounts, IAM, etc.)
+- Override variables as needed
+- Document changes for audit trail
 
-4. **Open [http://localhost:3000](http://localhost:3000)**
-
-## 📚 Documentation
-
-- � **[Deployment Guide](./DEPLOYMENT.md)** - Complete production deployment workflow
-- 🏗️ **[Terraform Setup](./terraform/README.md)** - Infrastructure as Code configuration
-- 🔧 **[GitHub Variables Setup](./docs/GITHUB_VARIABLES_SETUP.md)** - GitHub Actions configuration
-- 🔐 **[GitHub Setup Guide](./docs/GITHUB_SETUP.md)** - Authentication and secrets setup
-- 📖 **[All Documentation](./docs/README.md)** - Documentation overview and navigation
+### 🚀 Deploy Application
+**Workflow: `deploy.yml`**
+- Go to **Actions** tab → **"🚀 Deploy Application"** → **"Run workflow"**
+- **Options**: Use YAML template or gcloud CLI deployment
+- **Triggers**: Manual run or automatic on push to main branch
+- **Features**: Builds Next.js app, deploys to Cloud Run, provides live URL
+- **Template Support**: Uses your custom Cloud Run YAML template for advanced configuration
 
 ## 🏗️ Architecture
 
-### Tech Stack
-- **Framework**: Next.js 15 with TypeScript and App Router
-- **Styling**: Tailwind CSS with responsive design
-- **Authentication**: Firebase Auth (email/password + Google OAuth)
-- **Storage**: Google Cloud Storage with streaming support
-- **Infrastructure**: Terraform for automated GCP provisioning
-- **Deployment**: Google Cloud Run with GitHub Actions CI/CD
-- **Security**: Workload Identity for keyless authentication
+### Infrastructure (Terraform)
+- **Cloud Run**: Scalable containerized application hosting
+- **Cloud Storage**: Multiple buckets with different storage classes
+- **Artifact Registry**: Docker image storage
+- **Workload Identity**: Keyless GitHub Actions authentication
+- **IAM**: Least-privilege service account
 
-### Key Components
-- 🖥️ **FileManagerV2** - Main three-panel layout component
-- 📁 **FileBrowser** - File listing with bulk operations
-- 🎞️ **FilePreview** - Persistent right-panel preview with streaming
-- � **UploadDialog** - Drag-and-drop file/folder uploads
-- � **LoginForm** - Authentication with multiple providers
+### Application (Next.js)
+- **Three-panel layout**: Sidebar, file browser, preview panel
+- **Firebase Auth**: Email/password + Google OAuth
+- **File Operations**: Upload, download, delete, preview
+- **Streaming Support**: Large file handling with HTTP range requests
+- **Multi-format Preview**: Images, videos, audio, text, documents
 
-## ⚙️ Environment Variables
+## 🔧 Required Configuration
 
-### Firebase Configuration (Public)
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+All configuration is stored securely in GitHub:
+
+### GitHub Variables (Public)
+```
+GCP_PROJECT_ID=your-project-id
+GCP_REGION=us-central1
+CLOUD_RUN_SERVICE_NAME=filemanager
+ARTIFACT_REGISTRY_REPO=filemanager-repo
+ALLOWED_BUCKETS=bucket1,bucket2,bucket3
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
 NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
 ```
 
-### Server Configuration (Private)
-```env
-FIREBASE_SERVICE_ACCOUNT_KEY=base64-encoded-service-account-json
-GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
-ALLOWED_BUCKETS=bucket1,bucket2,bucket3
-NEXTAUTH_SECRET=your-secret-key
+### GitHub Secrets (Private)
+```
+GCP_SERVICE_ACCOUNT_KEY=your-gcp-service-account-json
+WIF_PROVIDER=your-workload-identity-provider (if using Workload Identity)
+WIF_SERVICE_ACCOUNT=your-service-account-email (if using Workload Identity)
+FIREBASE_SERVICE_ACCOUNT_KEY=your-firebase-service-account-json
+NEXTAUTH_SECRET=random-32-byte-string
 ```
 
-See `.env.local.example` for complete configuration template.
-
-## 🚀 Production Deployment
-
-For production deployment with full infrastructure automation:
-
-**📖 [Complete Deployment Guide](./DEPLOYMENT.md)** - Step-by-step production setup
-
-Key features:
-- 🏗️ **Terraform Infrastructure** - Automated GCP resource provisioning
-- 🔄 **GitHub Actions** - Continuous deployment pipeline
-- 🔐 **Workload Identity** - Secure keyless authentication
-- 📋 **Multi-Environment** - Support for dev, staging, production
-## � Project Structure
-
-```
-src/
-├── app/                   # Next.js App Router
-│   ├── api/              # API routes
-│   │   ├── buckets/      # Bucket listing
-│   │   ├── upload/       # File upload
-│   │   ├── delete/       # File deletion
-│   │   ├── stream/       # Video streaming
-│   │   └── preview/      # File preview
-│   ├── layout.tsx        # Root layout with auth context
-│   └── page.tsx          # Main dashboard
-├── components/           # React components
-│   ├── FileManagerV2.tsx # Main three-panel layout
-│   ├── FilePreview.tsx   # Right-panel file preview
-│   ├── FileBrowser.tsx   # File listing and management
-│   ├── UploadDialog.tsx  # File/folder upload modal
-│   └── LoginForm.tsx     # Authentication form
-├── lib/                  # Utility libraries
-│   ├── firebase.ts       # Firebase client config
-│   ├── firebase-admin.ts # Firebase admin config
-│   └── gcs.ts            # Google Cloud Storage client
-├── types/               # TypeScript definitions
-│   └── index.ts         # Shared types
-└── hooks/               # Custom React hooks
-    └── useAuth.ts       # Authentication hook
-```
-
-## 🔒 Security Features
-
-- Firebase service account key is only used server-side
-- All API routes verify Firebase authentication tokens
-- GCS operations restricted to configured buckets only
-- Input validation on all file operations
-- CORS and security headers configured
-- Workload Identity for keyless GitHub Actions authentication
-
-## 🛠️ Development
+## 📦 Local Development
 
 ```bash
 # Install dependencies
 npm install
 
+# Create environment file (never commit this!)
+cp .env.local.example .env.local
+# Edit .env.local with your Firebase config
+
 # Run development server
 npm run dev
+```
 
-# Build for production
-npm run build
+Visit `http://localhost:3000`
 
-# Start production server
-npm start
+## 🌐 Production Deployment
 
-# Lint code
-npm run lint
+Deployment is fully automated via GitHub Actions:
 
-# Validate configuration
-npm run validate
+1. **Push to main** → Automatic deployment
+2. **Manual deployment** → Run "3️⃣ Deploy Application" workflow
 
-# Access documentation
-npm run docs
+The deployed application includes:
+- Automatic SSL certificates
+- Auto-scaling based on traffic
+- Health checks and monitoring
+- Environment variable injection
+
+## 🛠️ Management
+
+### Adding New Buckets
+1. Run **"🪣 Add Storage Buckets"** workflow
+2. Provide new bucket names and storage classes
+3. Update GitHub Variable `ALLOWED_BUCKETS` as instructed
+4. **Security**: Bucket names stored only in GitHub Variables, never in repository
+
+### Deploying the Application
+1. Run **"� Deploy Application"** workflow
+2. **Choose deployment method**:
+   - **YAML Template** (recommended): Uses your custom Cloud Run template
+   - **gcloud CLI**: Simple command-line deployment
+3. **Automatic deployment**: Push to main branch auto-deploys
+4. **Live URL**: Get application URL in workflow output
+
+### Updating Infrastructure
+1. Run **"🔧 Update Infrastructure"** workflow
+2. Choose **plan** to preview changes or **apply** to implement
+3. Document what changes you're making
+4. Override variables if needed
+
+### Monitoring
+- **Cloud Run Console**: Monitor application performance
+- **Cloud Storage Console**: Manage bucket contents  
+- **GitHub Actions**: View deployment and infrastructure history
+
+## 🔒 Security Features
+
+- **Workload Identity**: Keyless authentication between GitHub Actions and GCP
+- **Least Privilege IAM**: Service accounts with minimal required permissions
+- **No Hardcoded Secrets**: All sensitive data in GitHub Secrets
+- **Public Repo Safe**: No sensitive information in repository files
+- **Firebase Auth**: Secure user authentication and authorization
+- **Environment Isolation**: Separate environments with isolated resources
+
+## 📁 Project Structure
+
+```
+├── .github/workflows/       # GitHub Actions workflows
+│   ├── setup.yml           # 1️⃣ Initial infrastructure setup
+│   ├── add-buckets.yml     # 🪣 Add new storage buckets
+│   ├── update-infrastructure.yml # 🔧 Update infrastructure (IAM, services)
+│   └── deploy.yml          # 3️⃣ Application deployment
+├── src/                    # Next.js application
+│   ├── app/               # App Router pages and API routes
+│   ├── components/        # React components
+│   ├── lib/               # Utilities and configurations
+│   └── types/             # TypeScript definitions
+├── terraform/             # Infrastructure as Code
+│   ├── main.tf            # Provider configuration
+│   ├── variables.tf       # Variable definitions
+│   ├── resources.tf       # Resource definitions
+│   ├── outputs.tf         # Output values (sensitive data marked)
+│   ├── SECURITY.md        # Security documentation
+│   └── terraform.tfvars.example # Example structure (no real data)
+└── docs/                  # Documentation
 ```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes following the coding standards
-4. Run tests and linting (`npm run lint`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Test locally
+5. Submit a pull request
+
+The automated workflows will handle infrastructure and deployment.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - See [LICENSE](LICENSE) file for details.
+
+---
+
+**🔒 Repository Security Notice**: This repository is designed to be public-safe. All sensitive configuration is stored in GitHub Variables/Secrets, never in repository files.

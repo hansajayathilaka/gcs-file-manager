@@ -39,9 +39,38 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Additional custom ignores
+# Security: Prevent sensitive data commits
+# Terraform files with real data
+terraform.tfvars
+terraform.tfvars.json
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Environment files with real configuration
 .env
-.env.production
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary config files (contains personal/project data)
+**/current-buckets.json
+config-*.json
+project-config.json
+bucket-config.json
+**/terraform.tfvars
+
+# Temporary deployment files (contain secrets during deployment)
+service.yaml
+cloudrun-service.yaml
+
+# Keep templates (they contain no secrets, only placeholders)
+!.github/templates/
+
+# Additional custom ignores
 service-account*.json
 firebase-adminsdk*.json
 google-cloud-key*.json

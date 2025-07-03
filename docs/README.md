@@ -4,16 +4,18 @@ This directory contains all setup and configuration documentation for the FileMa
 
 ## 📚 Documentation Overview
 
-### Getting Started
-- 📖 **[Main README](../README.md)** - Project overview and quick local development
+### 🚀 Getting Started (New Projects)
+- **[Quick Setup Guide](../QUICK_SETUP.md)** - **START HERE** for new GCP projects (one-command deployment)
+- 📖 **[Main README](../README.md)** - Project overview and local development
 - 🚀 **[Deployment Guide](../DEPLOYMENT.md)** - Complete production deployment workflow
 
-### Infrastructure & Deployment
-- 🏗️ **[Terraform Setup](../terraform/README.md)** - Infrastructure as Code configuration
+### 🏗️ Infrastructure & Deployment
+- 🏗️ **[Terraform Setup](../terraform/README.md)** - Infrastructure as Code with GCS backend
 - 🔧 **[GitHub Variables Setup](./GITHUB_VARIABLES_SETUP.md)** - GitHub Actions variable configuration
 - 🔐 **[GitHub Setup Guide](./GITHUB_SETUP.md)** - Secrets and authentication setup
+- 📦 **[GCS Backend Implementation](./GCS_BACKEND_IMPLEMENTATION.md)** - Technical details of state management
 
-### Additional Resources
+### 🎯 Additional Resources
 - 🎬 **[Preview Demo](./preview-demo.md)** - Application screenshots and feature preview
 
 ## 🗂️ File Organization
@@ -22,12 +24,13 @@ The documentation has been organized to eliminate duplication and provide clear 
 
 ### Root Level
 - `README.md` - Project overview, tech stack, and local development
+- `QUICK_SETUP.md` - **NEW** - One-command setup for new projects  
 - `DEPLOYMENT.md` - Complete deployment workflow and instructions
-- `PROJECT_SUMMARY.md` - Technical project summary
 
 ### docs/ Directory  
 - `GITHUB_VARIABLES_SETUP.md` - GitHub Variables configuration for Terraform workflows
 - `GITHUB_SETUP.md` - GitHub Secrets and authentication setup
+- `GCS_BACKEND_IMPLEMENTATION.md` - **NEW** - Technical implementation details
 - `preview-demo.md` - Application preview and feature screenshots
 
 ### terraform/ Directory

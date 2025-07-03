@@ -1,0 +1,235 @@
+name: 1️⃣ Initial Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'GCP Project ID'
+        required: true
+        type: string
+      region:
+        description: 'GCP Region'
+        required: false
+        default: 'us-central1'
+        type: string
+      bucket_names:
+        description: 'Initial bucket names (comma separated): bucket1,bucket2,bucket3'
+        required: true
+        type: string
+      bucket_classes:
+        description: 'Storage classes (comma separated, same order): STANDARD,NEARLINE,COLDLINE'
+        required: false
+        default: 'STANDARD'
+        type: string
+      service_name:
+        description: 'Cloud Run Service Name'
+        required: false
+        default: 'filemanager'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  setup:
+    name: Initial Infrastructure Setup
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Validate and Setup Configuration
+      run: |
+        echo "## 🚀 Initial Setup Started" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Parse bucket configurations
+        IFS=',' read -ra BUCKET_NAMES <<< "${{ github.event.inputs.bucket_names }}"
+        IFS=',' read -ra BUCKET_CLASSES <<< "${{ github.event.inputs.bucket_classes }}"
+        
+        # If only one class provided, use it for all buckets
+        if [ ${#BUCKET_CLASSES[@]} -eq 1 ] && [ ${#BUCKET_NAMES[@]} -gt 1 ]; then
+          SINGLE_CLASS="${BUCKET_CLASSES[0]}"
+          BUCKET_CLASSES=()
+          for ((i=0; i<${#BUCKET_NAMES[@]}; i++)); do
+            BUCKET_CLASSES+=("$SINGLE_CLASS")
+          done
+        fi
+        
+        # Validate bucket count matches
+        if [ ${#BUCKET_NAMES[@]} -ne ${#BUCKET_CLASSES[@]} ]; then
+          echo "❌ Number of bucket names and classes must match"
+          echo "Bucket names: ${#BUCKET_NAMES[@]}, Classes: ${#BUCKET_CLASSES[@]}"
+          exit 1
+        fi
+        
+        # Build JSON for buckets
+        BUCKETS_JSON="["
+        for ((i=0; i<${#BUCKET_NAMES[@]}; i++)); do
+          if [ $i -gt 0 ]; then BUCKETS_JSON+=","; fi
+          BUCKETS_JSON+="{\"name\":\"${BUCKET_NAMES[i]}\",\"class\":\"${BUCKET_CLASSES[i]}\"}"
+        done
+        BUCKETS_JSON+="]"
+        
+        echo "BUCKETS_JSON=$BUCKETS_JSON" >> $GITHUB_ENV
+        echo "BUCKET_NAMES_CSV=${{ github.event.inputs.bucket_names }}" >> $GITHUB_ENV
+        
+        echo "### 📋 Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Project ID | ${{ github.event.inputs.project_id }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Region | ${{ github.event.inputs.region }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Service Name | ${{ github.event.inputs.service_name }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Buckets | ${{ github.event.inputs.bucket_names }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+    - name: Check Required Secrets
+      run: |
+        MISSING_SECRETS=""
+        
+        if [ -z "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" ] && [ -z "${{ secrets.WIF_PROVIDER }}" ]; then
+          MISSING_SECRETS="$MISSING_SECRETS\n- GCP_SERVICE_ACCOUNT_KEY (Service Account JSON) OR WIF_PROVIDER (Workload Identity)"
+        fi
+        
+        if [ -n "$MISSING_SECRETS" ]; then
+          echo "## ❌ Missing Required Secrets" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Before running this workflow, you need:" >> $GITHUB_STEP_SUMMARY
+          echo -e "$MISSING_SECRETS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Setup Instructions:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to GitHub repo: Settings > Secrets and variables > Actions > Secrets" >> $GITHUB_STEP_SUMMARY
+          echo "2. Add either:" >> $GITHUB_STEP_SUMMARY
+          echo "   - **GCP_SERVICE_ACCOUNT_KEY**: JSON key for a service account with Owner/Editor role" >> $GITHUB_STEP_SUMMARY
+          echo "   - **WIF_PROVIDER** + **WIF_SERVICE_ACCOUNT**: For Workload Identity (recommended)" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ github.event.inputs.project_id }}
+
+    - name: Enable Required APIs
+      run: |
+        echo "📡 Enabling required GCP APIs..."
+        gcloud services enable \
+          storage.googleapis.com \
+          run.googleapis.com \
+          artifactregistry.googleapis.com \
+          cloudbuild.googleapis.com \
+          iam.googleapis.com \
+          --project=${{ github.event.inputs.project_id }}
+        echo "✅ APIs enabled"
+
+    - name: Create Terraform State Bucket
+      run: |
+        STATE_BUCKET="${{ github.event.inputs.project_id }}-terraform-state"
+        echo "📦 Creating Terraform state bucket: $STATE_BUCKET"
+        
+        if ! gsutil ls -b "gs://$STATE_BUCKET" 2>/dev/null; then
+          gsutil mb -p "${{ github.event.inputs.project_id }}" -l "${{ github.event.inputs.region }}" "gs://$STATE_BUCKET"
+          gsutil versioning set on "gs://$STATE_BUCKET"
+          gsutil uniformbucketlevelaccess set on "gs://$STATE_BUCKET"
+          echo "✅ State bucket created"
+        else
+          echo "✅ State bucket already exists"
+        fi
+        
+        echo "STATE_BUCKET=$STATE_BUCKET" >> $GITHUB_ENV
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ~1.6.0
+
+    - name: Deploy Infrastructure
+      working-directory: terraform
+      run: |
+        # Create terraform.tfvars
+        cat > terraform.tfvars << EOF
+        project_id = "${{ github.event.inputs.project_id }}"
+        region     = "${{ github.event.inputs.region }}"
+        service_name = "${{ github.event.inputs.service_name }}"
+        artifact_registry_repo = "filemanager-repo"
+        environment = "prod"
+        github_repo = "${{ github.repository }}"
+        enable_workload_identity = true
+        storage_buckets = $BUCKETS_JSON
+        EOF
+        
+        # Initialize and apply
+        terraform init \
+          -backend-config="bucket=$STATE_BUCKET" \
+          -backend-config="prefix=terraform/state"
+        
+        terraform plan
+        terraform apply -auto-approve
+        
+        echo "✅ Infrastructure deployed!"
+
+    - name: Save Configuration to GitHub Variables
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## ✅ Setup Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Infrastructure deployed. Configuration stored securely in GitHub Variables/Secrets." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🔧 Copy These GitHub Variables" >> $GITHUB_STEP_SUMMARY
+        echo "Go to: **Settings > Secrets and variables > Actions > Variables**" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "GCP_PROJECT_ID=${{ github.event.inputs.project_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "GCP_REGION=${{ github.event.inputs.region }}" >> $GITHUB_STEP_SUMMARY
+        echo "CLOUD_RUN_SERVICE_NAME=${{ github.event.inputs.service_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "ARTIFACT_REGISTRY_REPO=filemanager-repo" >> $GITHUB_STEP_SUMMARY
+        echo "ALLOWED_BUCKETS=$BUCKET_NAMES_CSV" >> $GITHUB_STEP_SUMMARY
+        echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ github.event.inputs.project_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ github.event.inputs.project_id }}.firebaseapp.com" >> $GITHUB_STEP_SUMMARY
+        echo "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ github.event.inputs.project_id }}.appspot.com" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🔑 Copy These GitHub Secrets" >> $GITHUB_STEP_SUMMARY
+        echo "Go to: **Settings > Secrets and variables > Actions > Secrets**" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "NEXTAUTH_SECRET=$(openssl rand -base64 32)" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🔥 Firebase Setup Required" >> $GITHUB_STEP_SUMMARY
+        echo "1. Go to [Firebase Console](https://console.firebase.google.com/)" >> $GITHUB_STEP_SUMMARY
+        echo "2. Add your project: \`${{ github.event.inputs.project_id }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "3. Enable Authentication > Sign-in method > Email/Password + Google" >> $GITHUB_STEP_SUMMARY
+        echo "4. Get your Firebase config and add these **GitHub Variables**:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key_here" >> $GITHUB_STEP_SUMMARY
+        echo "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id_here" >> $GITHUB_STEP_SUMMARY
+        echo "NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id_here" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "5. Create a service account key and add as **GitHub Secret**:" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "FIREBASE_SERVICE_ACCOUNT_KEY=your_firebase_service_account_json" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## 🔒 Security Notice" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **No sensitive data is stored in repository files**" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **All configuration is in GitHub Variables/Secrets**" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Repository remains safe for public sharing**" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "## 🎯 Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. **Copy and paste the GitHub Variables and Secrets above**" >> $GITHUB_STEP_SUMMARY
+        echo "2. **Complete Firebase setup**" >> $GITHUB_STEP_SUMMARY
+        echo "3. **Use '2️⃣ Infrastructure Updates' to add more buckets**" >> $GITHUB_STEP_SUMMARY
+        echo "4. **Use '3️⃣ Deploy Application' to deploy your app**" >> $GITHUB_STEP_SUMMARY
