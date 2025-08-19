@@ -6,7 +6,6 @@ metadata:
     cloud.googleapis.com/location: asia-southeast1
   annotations:
     run.googleapis.com/ingress: all
-    run.googleapis.com/ingress-status: all
 spec:
   template:
     metadata:

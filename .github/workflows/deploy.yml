@@ -85,6 +85,14 @@ jobs:
             --region=${{ env.REGION }} \
             --platform=managed
 
+      - name: Set IAM Policy for Cloud Run
+        run: |-
+          # Grant authenticated users access to invoke the service
+          # This complies with org policy that prevents disabling IAM invoker
+          gcloud run services add-iam-policy-binding ${{ env.SERVICE }} \
+            --region=${{ env.REGION }} \
+            --member="allAuthenticatedUsers" \
+            --role="roles/run.invoker"
 
       - name: Get Service URL
         run: |-
