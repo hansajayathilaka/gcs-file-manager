@@ -77,6 +77,11 @@ jobs:
           sed -i "s|GCP_PROJECT_ID_PLACEHOLDER|${{ env.PROJECT_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_SECRET_PLACEHOLDER|${{ secrets.NEXTAUTH_SECRET }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_URL_PLACEHOLDER|${{ vars.NEXTAUTH_URL }}|g" cloudrun-service-updated.yaml
+          
+          # Log the final spec file for debugging
+          echo "=== Final Cloud Run Service Spec ==="
+          cat cloudrun-service-updated.yaml
+          echo "=== End of Spec File ==="
 
       - name: Deploy to Cloud Run
         id: deploy
