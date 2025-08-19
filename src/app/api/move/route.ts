@@ -32,7 +32,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     if (isFolder) {
       // Handle folder move
       const folderPath = sourcePath.endsWith('/') ? sourcePath : sourcePath + '/';
-      const folderName = folderPath.split('/').filter(p => p).pop();
+      const folderName = folderPath.split('/').filter((p: string) => p).pop();
       const newFolderPath = destinationPath ? `${destinationPath}${folderName}/` : `${folderName}/`;
 
       // Get all files in the folder

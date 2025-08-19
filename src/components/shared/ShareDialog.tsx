@@ -5,6 +5,7 @@ import { XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24
 import { ShareableLinkRequest, ShareableLinkResponse } from '@/types';
 import { FileTreeItem } from '@/types/fileSystem';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { auth } from '@/lib/firebase';
 
 interface ShareDialogProps {
@@ -16,6 +17,7 @@ interface ShareDialogProps {
 
 const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, file, bucket }) => {
   const { user } = useAuth();
+  const { showError } = useNotifications();
   const [expiresInHours, setExpiresInHours] = useState(24);
   const [maxAccess, setMaxAccess] = useState<number | ''>('');
   const [description, setDescription] = useState('');
@@ -60,7 +62,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, file, bucket
       }
     } catch (error) {
       console.error('Error creating share link:', error);
-      alert('Failed to create share link. Please try again.');
+      showError('Failed to create share link', 'Please try again.');
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { UserProfile, ManagedBucket, BucketPermission } from '@/types';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
 import { 
   PencilIcon, 
   TrashIcon,
@@ -14,10 +16,14 @@ import {
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
+  const { showError, showSuccess } = useNotifications();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [buckets, setBuckets] = useState<ManagedBucket[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [deactivateConfirmOpen, setDeactivateConfirmOpen] = useState(false);
+  const [userToDeactivate, setUserToDeactivate] = useState<string | null>(null);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,14 +144,19 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const deactivateUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to deactivate this user?')) {
-      return;
-    }
+  const initiateDeactivate = (userId: string) => {
+    setUserToDeactivate(userId);
+    setDeactivateConfirmOpen(true);
+  };
+
+  const deactivateUser = async () => {
+    if (!userToDeactivate) return;
+    
+    setDeactivateLoading(true);
 
     try {
       const headers = await getAuthHeaders();
-      const response = await fetch(`/api/admin/users?userId=${userId}`, {
+      const response = await fetch(`/api/admin/users?userId=${userToDeactivate}`, {
         method: 'DELETE',
         headers,
       });
@@ -157,13 +168,18 @@ const UserManagement: React.FC = () => {
       const data = await response.json();
       if (data.success) {
         await fetchUsers(); // Refresh the list
+        showSuccess('User deactivated successfully', '');
+        setDeactivateConfirmOpen(false);
+        setUserToDeactivate(null);
         setError(null);
       } else {
-        setError(data.error || 'Failed to deactivate user');
+        showError('Failed to deactivate user', data.error || 'Unknown error');
       }
     } catch (err) {
       console.error('Error deactivating user:', err);
-      setError('Failed to deactivate user');
+      showError('Failed to deactivate user', 'Please try again');
+    } finally {
+      setDeactivateLoading(false);
     }
   };
 
@@ -413,7 +429,7 @@ const UserManagement: React.FC = () => {
                     <FolderIcon className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => deactivateUser(userItem.uid)}
+                    onClick={() => initiateDeactivate(userItem.uid)}
                     disabled={userItem.uid === user?.uid}
                     className="text-red-600 hover:text-red-800 p-2 disabled:text-gray-400"
                     title="Deactivate user"
@@ -576,6 +592,21 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       )}
+      
+      <ConfirmationModal
+        isOpen={deactivateConfirmOpen}
+        onClose={() => {
+          setDeactivateConfirmOpen(false);
+          setUserToDeactivate(null);
+        }}
+        onConfirm={deactivateUser}
+        title="Deactivate User"
+        message="Are you sure you want to deactivate this user? This will remove their access to all buckets and they will no longer be able to use the system."
+        confirmText="Deactivate"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={deactivateLoading}
+      />
     </div>
   );
 };

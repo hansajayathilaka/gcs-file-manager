@@ -19,6 +19,7 @@ import {
   ScissorsIcon,
   ClipboardDocumentIcon,
   PencilIcon,
+  type ContextMenuItem,
 } from './shared/ContextMenu';
 
 interface FileBrowserProps {
@@ -115,8 +116,8 @@ export default function FileBrowser({
     setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, item: null });
   };
 
-  const getContextMenuItems = (item: FileTreeItem) => {
-    const items = [
+  const getContextMenuItems = (item: FileTreeItem): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [
       {
         label: 'Copy',
         icon: <DocumentDuplicateIcon className="w-4 h-4" />,
@@ -140,7 +141,7 @@ export default function FileBrowser({
     items.push(
       {
         label: '',
-        icon: null,
+        icon: <></>,
         onClick: () => {},
         separator: true,
       },
@@ -170,7 +171,7 @@ export default function FileBrowser({
     items.push(
       {
         label: '',
-        icon: null,
+        icon: <></>,
         onClick: () => {},
         separator: true,
       },
@@ -255,20 +256,6 @@ export default function FileBrowser({
     if (selectedItems.size === 0) return;
     
     const itemsToDelete = files.filter(f => selectedItems.has(f.path));
-    const fileCount = itemsToDelete.filter(f => !f.isFolder).length;
-    const folderCount = itemsToDelete.filter(f => f.isFolder).length;
-    
-    let confirmMessage = `Are you sure you want to delete ${selectedItems.size} item${selectedItems.size > 1 ? 's' : ''}?`;
-    if (fileCount > 0 && folderCount > 0) {
-      confirmMessage = `Are you sure you want to delete ${fileCount} file${fileCount > 1 ? 's' : ''} and ${folderCount} folder${folderCount > 1 ? 's' : ''}?`;
-    } else if (fileCount > 0) {
-      confirmMessage = `Are you sure you want to delete ${fileCount} file${fileCount > 1 ? 's' : ''}?`;
-    } else if (folderCount > 0) {
-      confirmMessage = `Are you sure you want to delete ${folderCount} folder${folderCount > 1 ? 's' : ''} and all their contents?`;
-    }
-    confirmMessage += ' This action cannot be undone.';
-    
-    if (!confirm(confirmMessage)) return;
     
     // Delete items one by one and track failures
     const failures: string[] = [];

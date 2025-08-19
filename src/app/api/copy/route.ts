@@ -33,7 +33,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     if (isFolder) {
       // Handle folder copy
       const folderPath = sourcePath.endsWith('/') ? sourcePath : sourcePath + '/';
-      const folderName = folderPath.split('/').filter(p => p).pop();
+      const folderName = folderPath.split('/').filter((p: string) => p).pop();
       const finalName = newName || folderName;
       const newFolderPath = destinationPath ? `${destinationPath}${finalName}/` : `${finalName}/`;
 

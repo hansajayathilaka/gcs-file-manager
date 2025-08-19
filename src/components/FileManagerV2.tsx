@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useFileOperations } from '@/contexts/FileOperationsContext';
 import { auth } from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import BucketSidebar from '@/components/BucketSidebar';
 import Breadcrumb from '@/components/Breadcrumb';
 import FileBrowser from '@/components/FileBrowser';
@@ -180,12 +181,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
 
     const filesArray = Array.isArray(files) ? files : Array.from(files);
     
-    console.log('Upload starting:', { 
-      fileCount: filesArray.length,
-      destinationPath, 
-      currentPath,
-      destinationPathLength: destinationPath.length 
-    });
+    logger.debug('Upload starting', { fileCount: filesArray.length, destinationPath, currentPath });
 
     setUploading(true);
     try {
@@ -202,14 +198,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         formData.append(`path-${index}`, relativePath);
       });
       
-      // Debug the form data
-      console.log('FormData contents:', {
-        fileCount: filesArray.length,
-        bucket: selectedBucket,
-        currentPath: destinationPath,
-        firstFile: filesArray[0]?.name,
-        hasRelativePaths: filesArray.some(f => (f as any).webkitRelativePath)
-      });
+      logger.debug('FormData prepared', { fileCount: filesArray.length, bucket: selectedBucket, currentPath: destinationPath });
 
       const headers = await getAuthHeaders();
       const response = await fetch('/api/upload', {
@@ -219,7 +208,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       });
 
       const data = await response.json();
-      console.log('Upload response:', data);
+      logger.debug('Upload response', data);
       
       if (data.success) {
         // Reload folders structure since we might have uploaded to a new location
@@ -228,11 +217,11 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         // If uploaded to current path, reload current view
         // If uploaded to different path, show success message
         if (destinationPath === currentPath) {
-          console.log('Uploaded to current path, reloading current view');
+          logger.debug('Upload completed to current path');
           loadFiles(selectedBucket, currentPath);
         } else {
           // Show success message and optionally navigate to the upload location
-          console.log('Uploaded to different path:', destinationPath);
+          logger.debug('Upload completed to different path', { destinationPath });
           showSuccess('Upload Successful', `${data.successCount} file${data.successCount !== 1 ? 's' : ''} uploaded successfully to: ${destinationPath || 'root'}`);
           loadFiles(selectedBucket, currentPath); // Still refresh current view in case of .keep files etc.
         }
@@ -355,11 +344,11 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       } else {
         const errorData = await response.json();
         console.error('Download failed:', errorData.error);
-        alert('Download failed: ' + errorData.error);
+        showError('Download failed', errorData.error);
       }
     } catch (error) {
       console.error('Error downloading file:', error);
-      alert('Download failed');
+      showError('Download failed', 'An unexpected error occurred');
     }
   };
 
@@ -409,11 +398,11 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       } else {
         const errorData = await response.json();
         console.error('Bulk download failed:', errorData.error);
-        alert('Bulk download failed: ' + errorData.error);
+        showError('Bulk download failed', errorData.error);
       }
     } catch (error) {
       console.error('Error downloading files:', error);
-      alert('Bulk download failed');
+      showError('Bulk download failed', 'An unexpected error occurred');
     }
   };
 

@@ -1,18 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import storage from '@/lib/gcs';
 import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
+import { validateBucketName, validatePath, sanitizeString } from '@/lib/validation';
 
 export const DELETE = withAuth(async (request: NextRequest, user) => {
   try {
 
     const { searchParams } = new URL(request.url);
-    const bucketName = searchParams.get('bucket');
-    const fileName = searchParams.get('file');
+    const bucketName = sanitizeString(searchParams.get('bucket') || '');
+    const fileName = sanitizeString(searchParams.get('file') || '');
     const isFolder = searchParams.get('isFolder') === 'true';
 
-    if (!bucketName || !fileName) {
+    // Validate bucket name
+    const bucketValidation = validateBucketName(bucketName);
+    if (!bucketValidation.isValid) {
       return NextResponse.json(
-        { success: false, error: 'Bucket and file name are required' },
+        { success: false, error: bucketValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Validate file/folder name
+    if (!fileName) {
+      return NextResponse.json(
+        { success: false, error: 'File name is required' },
+        { status: 400 }
+      );
+    }
+
+    const pathValidation = validatePath(fileName);
+    if (!pathValidation.isValid) {
+      return NextResponse.json(
+        { success: false, error: pathValidation.error },
         { status: 400 }
       );
     }

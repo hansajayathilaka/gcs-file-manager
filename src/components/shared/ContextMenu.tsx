@@ -92,3 +92,4 @@ export default function ContextMenu({ isOpen, position, onClose, items }: Contex
 }
 
 export { DocumentDuplicateIcon, ScissorsIcon, ClipboardDocumentIcon, PencilIcon, TrashIcon, ArrowDownTrayIcon, ShareIcon };
+export type { ContextMenuItem };

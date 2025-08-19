@@ -10,7 +10,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { ShareableLink, ShareableLinkListResponse } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { auth } from '@/lib/firebase';
+import ConfirmationModal from './ConfirmationModal';
 
 interface ShareLinksManagerProps {
   isOpen: boolean;
@@ -19,9 +21,13 @@ interface ShareLinksManagerProps {
 
 const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const { showError, showSuccess } = useNotifications();
   const [links, setLinks] = useState<ShareableLink[]>([]);
   const [loading, setLoading] = useState(false);
   const [copiedLinks, setCopiedLinks] = useState<Set<string>>(new Set());
+  const [revokeConfirmOpen, setRevokeConfirmOpen] = useState(false);
+  const [linkToRevoke, setLinkToRevoke] = useState<string | null>(null);
+  const [revokeLoading, setRevokeLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -70,8 +76,15 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
     }
   };
 
-  const handleRevoke = async (linkId: string) => {
-    if (!user || !confirm('Are you sure you want to revoke this link?')) return;
+  const initiateRevoke = (linkId: string) => {
+    setLinkToRevoke(linkId);
+    setRevokeConfirmOpen(true);
+  };
+
+  const handleRevoke = async () => {
+    if (!user || !linkToRevoke) return;
+    
+    setRevokeLoading(true);
 
     try {
       const currentUser = auth.currentUser;
@@ -84,7 +97,7 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ linkId }),
+        body: JSON.stringify({ linkId: linkToRevoke }),
       });
 
       const data = await response.json();
@@ -92,12 +105,17 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
       if (data.success) {
         // Refresh the list
         await loadLinks();
+        showSuccess('Link revoked successfully', '');
+        setRevokeConfirmOpen(false);
+        setLinkToRevoke(null);
       } else {
-        alert('Failed to revoke link: ' + (data.error || 'Unknown error'));
+        showError('Failed to revoke link', data.error || 'Unknown error');
       }
     } catch (error) {
       console.error('Error revoking link:', error);
-      alert('Failed to revoke link. Please try again.');
+      showError('Failed to revoke link', 'Please try again.');
+    } finally {
+      setRevokeLoading(false);
     }
   };
 
@@ -267,7 +285,7 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
                             )}
                             {!link.isRevoked && (
                               <button
-                                onClick={() => handleRevoke(link.id)}
+                                onClick={() => initiateRevoke(link.id)}
                                 className="text-red-600 hover:text-red-800"
                                 title="Revoke link"
                               >
@@ -294,6 +312,21 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
           </button>
         </div>
       </div>
+      
+      <ConfirmationModal
+        isOpen={revokeConfirmOpen}
+        onClose={() => {
+          setRevokeConfirmOpen(false);
+          setLinkToRevoke(null);
+        }}
+        onConfirm={handleRevoke}
+        title="Revoke Share Link"
+        message="Are you sure you want to revoke this share link? This action cannot be undone and the link will no longer be accessible."
+        confirmText="Revoke"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={revokeLoading}
+      />
     </div>
   );
 };
