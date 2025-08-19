@@ -65,7 +65,7 @@ bucket-config.json
 
 # Temporary deployment files (contain secrets during deployment)
 service.yaml
-cloudrun-service.yaml
+# cloudrun-service.yaml - commenting out since template contains only placeholders
 
 # Keep templates (they contain no secrets, only placeholders)
 !.github/templates/

@@ -28,7 +28,7 @@ const BucketManagement: React.FC = () => {
   const [newBucket, setNewBucket] = useState<AdminBucketCreateRequest>({
     name: '',
     displayName: '',
-    location: 'us-central1',
+    location: 'asia-southeast1',
     storageClass: 'STANDARD',
     description: '',
   });
@@ -104,7 +104,7 @@ const BucketManagement: React.FC = () => {
         setNewBucket({
           name: '',
           displayName: '',
-          location: 'us-central1',
+          location: 'asia-southeast1',
           storageClass: 'STANDARD',
           description: '',
         });
@@ -378,11 +378,55 @@ const BucketManagement: React.FC = () => {
                     onChange={(e) => setNewBucket(prev => ({ ...prev, location: e.target.value }))}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
-                    <option value="us-central1">US Central (Iowa)</option>
-                    <option value="us-east1">US East (South Carolina)</option>
-                    <option value="us-west1">US West (Oregon)</option>
-                    <option value="europe-west1">Europe West (Belgium)</option>
-                    <option value="asia-east1">Asia East (Taiwan)</option>
+                    <optgroup label="Asia Pacific">
+                      <option value="asia-southeast1">Asia Southeast (Singapore)</option>
+                      <option value="asia-southeast2">Asia Southeast (Jakarta)</option>
+                      <option value="asia-east1">Asia East (Taiwan)</option>
+                      <option value="asia-east2">Asia East (Hong Kong)</option>
+                      <option value="asia-northeast1">Asia Northeast (Tokyo)</option>
+                      <option value="asia-northeast2">Asia Northeast (Osaka)</option>
+                      <option value="asia-northeast3">Asia Northeast (Seoul)</option>
+                      <option value="asia-south1">Asia South (Mumbai)</option>
+                      <option value="asia-south2">Asia South (Delhi)</option>
+                      <option value="australia-southeast1">Australia Southeast (Sydney)</option>
+                      <option value="australia-southeast2">Australia Southeast (Melbourne)</option>
+                    </optgroup>
+                    <optgroup label="Europe">
+                      <option value="europe-west1">Europe West (Belgium)</option>
+                      <option value="europe-west2">Europe West (London)</option>
+                      <option value="europe-west3">Europe West (Frankfurt)</option>
+                      <option value="europe-west4">Europe West (Netherlands)</option>
+                      <option value="europe-west6">Europe West (Zurich)</option>
+                      <option value="europe-west8">Europe West (Milan)</option>
+                      <option value="europe-west9">Europe West (Paris)</option>
+                      <option value="europe-central2">Europe Central (Warsaw)</option>
+                      <option value="europe-north1">Europe North (Finland)</option>
+                      <option value="europe-southwest1">Europe Southwest (Madrid)</option>
+                    </optgroup>
+                    <optgroup label="North America">
+                      <option value="us-central1">US Central (Iowa)</option>
+                      <option value="us-east1">US East (South Carolina)</option>
+                      <option value="us-east4">US East (Northern Virginia)</option>
+                      <option value="us-east5">US East (Columbus)</option>
+                      <option value="us-south1">US South (Dallas)</option>
+                      <option value="us-west1">US West (Oregon)</option>
+                      <option value="us-west2">US West (Los Angeles)</option>
+                      <option value="us-west3">US West (Salt Lake City)</option>
+                      <option value="us-west4">US West (Las Vegas)</option>
+                      <option value="northamerica-northeast1">Canada Central (Montreal)</option>
+                      <option value="northamerica-northeast2">Canada Central (Toronto)</option>
+                    </optgroup>
+                    <optgroup label="South America">
+                      <option value="southamerica-east1">South America East (São Paulo)</option>
+                      <option value="southamerica-west1">South America West (Santiago)</option>
+                    </optgroup>
+                    <optgroup label="Middle East">
+                      <option value="me-west1">Middle East West (Tel Aviv)</option>
+                      <option value="me-central1">Middle East Central (Doha)</option>
+                    </optgroup>
+                    <optgroup label="Africa">
+                      <option value="africa-south1">Africa South (Johannesburg)</option>
+                    </optgroup>
                   </select>
                 </div>
 

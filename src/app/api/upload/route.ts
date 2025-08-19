@@ -5,10 +5,11 @@ import { validateBucketName, validatePath, validateBulkUpload, sanitizeString } 
 import { logger } from '@/lib/logger';
 
 export const POST = withAuth(async (request: NextRequest, user) => {
+  let bucketName = '';
   try {
 
     const formData = await request.formData();
-    const bucketName = sanitizeString(formData.get('bucket') as string);
+    bucketName = sanitizeString(formData.get('bucket') as string);
     const currentPath = sanitizeString(formData.get('currentPath') as string || '');
 
     // Validate bucket name
