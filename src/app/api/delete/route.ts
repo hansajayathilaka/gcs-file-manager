@@ -1,42 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import storage, { isBucketAllowed } from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import storage from '@/lib/gcs';
+import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
+import { validateBucketName, validatePath, sanitizeString } from '@/lib/validation';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const token = authHeader.substring(7);
+export const DELETE = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (err) {
-    throw new Error('Invalid authorization token');
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
 
     const { searchParams } = new URL(request.url);
-    const bucketName = searchParams.get('bucket');
-    const fileName = searchParams.get('file');
+    const bucketName = sanitizeString(searchParams.get('bucket') || '');
+    const fileName = sanitizeString(searchParams.get('file') || '');
     const isFolder = searchParams.get('isFolder') === 'true';
 
-    if (!bucketName || !fileName) {
+    // Validate bucket name
+    const bucketValidation = validateBucketName(bucketName);
+    if (!bucketValidation.isValid) {
       return NextResponse.json(
-        { success: false, error: 'Bucket and file name are required' },
+        { success: false, error: bucketValidation.error },
         { status: 400 }
       );
     }
 
-    if (!isBucketAllowed(bucketName)) {
+    // Validate file/folder name
+    if (!fileName) {
       return NextResponse.json(
-        { success: false, error: 'Bucket not allowed' },
+        { success: false, error: 'File name is required' },
+        { status: 400 }
+      );
+    }
+
+    const pathValidation = validatePath(fileName);
+    if (!pathValidation.isValid) {
+      return NextResponse.json(
+        { success: false, error: pathValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Check if user has DELETE permission for this bucket
+    try {
+      await requireBucketPermission(request, bucketName, 'delete');
+    } catch (error: any) {
+      return NextResponse.json(
+        { success: false, error: error.message },
         { status: 403 }
       );
     }
@@ -86,4 +91,4 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

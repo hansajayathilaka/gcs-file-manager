@@ -2,11 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
+import { useFileOperations } from '@/contexts/FileOperationsContext';
 import { auth } from '@/lib/firebase';
+import { logger } from '@/lib/logger';
 import BucketSidebar from '@/components/BucketSidebar';
 import Breadcrumb from '@/components/Breadcrumb';
 import FileBrowser from '@/components/FileBrowser';
 import FilePreview from '@/components/FilePreview';
+import ConfirmationModal from '@/components/shared/ConfirmationModal';
+import ShareDialog from '@/components/shared/ShareDialog';
+import ShareLinksManager from '@/components/shared/ShareLinksManager';
+import RenameDialog from '@/components/shared/RenameDialog';
 import { FileTreeItem, BreadcrumbItem, FolderOption } from '@/types/fileSystem';
 
 interface FileManagerV2Props {
@@ -15,6 +22,8 @@ interface FileManagerV2Props {
 
 export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
   const { user } = useAuth();
+  const { showError, showSuccess } = useNotifications();
+  const { clipboard, clearClipboard } = useFileOperations();
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>('');
   const [files, setFiles] = useState<FileTreeItem[]>([]);
@@ -23,6 +32,20 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
   const [allFolders, setAllFolders] = useState<FolderOption[]>([]);
   const [previewFile, setPreviewFile] = useState<FileTreeItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  
+  // Delete confirmation modal state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<{name: string, isFolder: boolean} | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  
+  // Share dialog state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareFile, setShareFile] = useState<FileTreeItem | null>(null);
+  const [shareLinksManagerOpen, setShareLinksManagerOpen] = useState(false);
+  
+  // Rename dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameItem, setRenameItem] = useState<FileTreeItem | null>(null);
 
   const getAuthHeaders = useCallback(async (): Promise<Record<string, string>> => {
     if (!user) return {};
@@ -71,10 +94,12 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         setCurrentPath(prefix);
       } else {
         console.error('Failed to load files:', data.error);
+        showError('Failed to load files', data.error || 'Unknown error occurred');
         setFiles([]);
       }
     } catch (error) {
       console.error('Error loading files:', error);
+      showError('Network Error', 'Failed to connect to server. Please try again.');
       setFiles([]);
     } finally {
       setLoading(false);
@@ -156,12 +181,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
 
     const filesArray = Array.isArray(files) ? files : Array.from(files);
     
-    console.log('Upload starting:', { 
-      fileCount: filesArray.length,
-      destinationPath, 
-      currentPath,
-      destinationPathLength: destinationPath.length 
-    });
+    logger.debug('Upload starting', { fileCount: filesArray.length, destinationPath, currentPath });
 
     setUploading(true);
     try {
@@ -178,14 +198,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         formData.append(`path-${index}`, relativePath);
       });
       
-      // Debug the form data
-      console.log('FormData contents:', {
-        fileCount: filesArray.length,
-        bucket: selectedBucket,
-        currentPath: destinationPath,
-        firstFile: filesArray[0]?.name,
-        hasRelativePaths: filesArray.some(f => (f as any).webkitRelativePath)
-      });
+      logger.debug('FormData prepared', { fileCount: filesArray.length, bucket: selectedBucket, currentPath: destinationPath });
 
       const headers = await getAuthHeaders();
       const response = await fetch('/api/upload', {
@@ -195,7 +208,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       });
 
       const data = await response.json();
-      console.log('Upload response:', data);
+      logger.debug('Upload response', data);
       
       if (data.success) {
         // Reload folders structure since we might have uploaded to a new location
@@ -204,21 +217,21 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         // If uploaded to current path, reload current view
         // If uploaded to different path, show success message
         if (destinationPath === currentPath) {
-          console.log('Uploaded to current path, reloading current view');
+          logger.debug('Upload completed to current path');
           loadFiles(selectedBucket, currentPath);
         } else {
           // Show success message and optionally navigate to the upload location
-          console.log('Uploaded to different path:', destinationPath);
-          alert(`${data.successCount} file${data.successCount !== 1 ? 's' : ''} uploaded successfully to: ${destinationPath || 'root'}`);
+          logger.debug('Upload completed to different path', { destinationPath });
+          showSuccess('Upload Successful', `${data.successCount} file${data.successCount !== 1 ? 's' : ''} uploaded successfully to: ${destinationPath || 'root'}`);
           loadFiles(selectedBucket, currentPath); // Still refresh current view in case of .keep files etc.
         }
       } else {
         console.error('Upload failed:', data.error);
-        alert('Upload failed: ' + data.error);
+        showError('Upload Failed', data.error || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Upload failed');
+      showError('Upload Failed', 'Network error occurred. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -246,33 +259,37 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       if (data.success) {
         // Reload files to show the new folder
         loadFiles(selectedBucket, currentPath);
+        showSuccess('Folder Created', `Folder "${folderName}" created successfully`);
       } else {
         console.error('Create folder failed:', data.error);
-        alert('Create folder failed: ' + data.error);
+        showError('Create Folder Failed', data.error || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Error creating folder:', error);
-      alert('Create folder failed');
+      showError('Create Folder Failed', 'Network error occurred. Please try again.');
     }
   };
 
   const handleDelete = async (fileName: string, isFolder: boolean = false): Promise<void> => {
-    const confirmMessage = isFolder 
-      ? `Are you sure you want to delete the folder "${fileName}" and all its contents? This action cannot be undone.`
-      : `Are you sure you want to delete the file "${fileName}"?`;
-      
-    if (!selectedBucket || !confirm(confirmMessage)) return;
+    // Open confirmation modal instead of using browser confirm
+    setDeleteItem({ name: fileName, isFolder });
+    setDeleteConfirmOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteItem || !selectedBucket) return;
+
+    setDeleteLoading(true);
     try {
       const headers = await getAuthHeaders();
       // Find the file item to get the stored path
-      const fileItem = files.find(f => f.name === fileName);
-      const fullPath = fileItem?.storedPath || (currentPath + fileName);
+      const fileItem = files.find(f => f.name === deleteItem.name);
+      const fullPath = fileItem?.storedPath || (currentPath + deleteItem.name);
       
       const url = new URL('/api/delete', window.location.origin);
       url.searchParams.append('bucket', selectedBucket);
       url.searchParams.append('file', fullPath);
-      url.searchParams.append('isFolder', isFolder.toString());
+      url.searchParams.append('isFolder', deleteItem.isFolder.toString());
       
       const response = await fetch(url.toString(), {
         method: 'DELETE',
@@ -283,13 +300,18 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       if (data.success) {
         // Reload files to reflect the deletion
         loadFiles(selectedBucket, currentPath);
+        showSuccess('Delete Successful', `${deleteItem.isFolder ? 'Folder' : 'File'} "${deleteItem.name}" deleted successfully`);
+        setDeleteConfirmOpen(false);
+        setDeleteItem(null);
       } else {
         console.error('Delete failed:', data.error);
-        throw new Error(data.error);
+        showError('Delete Failed', data.error || 'Unknown error occurred');
       }
     } catch (error) {
       console.error('Error deleting file:', error);
-      throw error;
+      showError('Delete Failed', 'Network error occurred. Please try again.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -314,7 +336,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = item.originalName || item.name; // Use original name for download
+        a.download = item.name; // Use current name for download (reflects renames)
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(downloadUrl);
@@ -322,11 +344,11 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       } else {
         const errorData = await response.json();
         console.error('Download failed:', errorData.error);
-        alert('Download failed: ' + errorData.error);
+        showError('Download failed', errorData.error);
       }
     } catch (error) {
       console.error('Error downloading file:', error);
-      alert('Download failed');
+      showError('Download failed', 'An unexpected error occurred');
     }
   };
 
@@ -376,11 +398,11 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
       } else {
         const errorData = await response.json();
         console.error('Bulk download failed:', errorData.error);
-        alert('Bulk download failed: ' + errorData.error);
+        showError('Bulk download failed', errorData.error);
       }
     } catch (error) {
       console.error('Error downloading files:', error);
-      alert('Bulk download failed');
+      showError('Bulk download failed', 'An unexpected error occurred');
     }
   };
 
@@ -392,6 +414,123 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
   const handleClosePreview = () => {
     setIsPreviewOpen(false);
     setPreviewFile(null);
+  };
+
+  const handleShare = (file: FileTreeItem) => {
+    setShareFile(file);
+    setShareDialogOpen(true);
+  };
+
+  const handleRename = (item: FileTreeItem) => {
+    setRenameItem(item);
+    setRenameDialogOpen(true);
+  };
+
+  const performRename = async (newName: string) => {
+    if (!renameItem || !selectedBucket) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/rename', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          bucket: selectedBucket,
+          oldPath: renameItem.storedPath || renameItem.path,
+          newName,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showSuccess('Rename Successful', data.message);
+        loadFiles(selectedBucket, currentPath);
+        setRenameDialogOpen(false);
+        setRenameItem(null);
+      } else {
+        showError('Rename Failed', data.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Error renaming item:', error);
+      showError('Rename Failed', 'Network error occurred. Please try again.');
+    }
+  };
+
+  const handleCopy = async (item: FileTreeItem) => {
+    if (!selectedBucket || !clipboard) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/copy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          bucket: selectedBucket,
+          sourcePath: clipboard.item.storedPath || clipboard.item.path,
+          destinationPath: currentPath,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showSuccess('Copy Successful', data.message);
+        loadFiles(selectedBucket, currentPath);
+        clearClipboard();
+      } else {
+        showError('Copy Failed', data.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Error copying item:', error);
+      showError('Copy Failed', 'Network error occurred. Please try again.');
+    }
+  };
+
+  const handleMove = async (item: FileTreeItem) => {
+    if (!selectedBucket || !clipboard) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/move', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          bucket: selectedBucket,
+          sourcePath: clipboard.item.storedPath || clipboard.item.path,
+          destinationPath: currentPath,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showSuccess('Move Successful', data.message);
+        loadFiles(selectedBucket, currentPath);
+        clearClipboard();
+      } else {
+        showError('Move Failed', data.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Error moving item:', error);
+      showError('Move Failed', 'Network error occurred. Please try again.');
+    }
+  };
+
+  const handlePaste = () => {
+    if (!clipboard) return;
+    
+    if (clipboard.operation === 'copy') {
+      handleCopy(clipboard.item);
+    } else if (clipboard.operation === 'cut') {
+      handleMove(clipboard.item);
+    }
   };
 
   // Generate breadcrumb items
@@ -447,13 +586,17 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
               onDownload={handleDownload}
               onBulkDownload={handleBulkDownload}
               onFilePreview={handleFilePreview}
+              onShare={handleShare}
+              onManageShares={() => setShareLinksManagerOpen(true)}
+              onRename={handleRename}
+              onPaste={handlePaste}
               allFolders={allFolders}
               uploading={uploading}
             />
 
             {/* Upload Overlay */}
             {uploading && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
                 <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
@@ -499,6 +642,59 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
             onDownload={handleDownload}
           />
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteItem(null);
+        }}
+        onConfirm={confirmDelete}
+        title={deleteItem?.isFolder ? "Delete Folder" : "Delete File"}
+        message={
+          deleteItem?.isFolder 
+            ? `Are you sure you want to delete the folder "${deleteItem?.name}" and all its contents? This action cannot be undone.`
+            : `Are you sure you want to delete the file "${deleteItem?.name}"? This action cannot be undone.`
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={deleteLoading}
+      />
+
+      {/* Share Dialog */}
+      {shareFile && (
+        <ShareDialog
+          isOpen={shareDialogOpen}
+          onClose={() => {
+            setShareDialogOpen(false);
+            setShareFile(null);
+          }}
+          file={shareFile}
+          bucket={selectedBucket || ''}
+        />
+      )}
+
+      {/* Share Links Manager */}
+      <ShareLinksManager
+        isOpen={shareLinksManagerOpen}
+        onClose={() => setShareLinksManagerOpen(false)}
+      />
+
+      {/* Rename Dialog */}
+      {renameItem && (
+        <RenameDialog
+          isOpen={renameDialogOpen}
+          onClose={() => {
+            setRenameDialogOpen(false);
+            setRenameItem(null);
+          }}
+          onRename={performRename}
+          currentName={renameItem.name}
+          isFolder={renameItem.isFolder}
+        />
       )}
     </div>
   );

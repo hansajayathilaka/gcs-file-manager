@@ -1,60 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import storage, { isBucketAllowed } from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import storage from '@/lib/gcs';
+import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
+import { validateBucketName, validatePath, validateFileName, sanitizeString } from '@/lib/validation';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const token = authHeader.substring(7);
+export const POST = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (err) {
-    throw new Error('Invalid authorization token');
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
-
     const { bucket, folderName, currentPath } = await request.json();
 
-    if (!bucket || !folderName) {
+    const bucketName = sanitizeString(bucket);
+    const sanitizedFolderName = sanitizeString(folderName);
+    const sanitizedCurrentPath = sanitizeString(currentPath || '');
+
+    // Validate bucket name
+    const bucketValidation = validateBucketName(bucketName);
+    if (!bucketValidation.isValid) {
       return NextResponse.json(
-        { success: false, error: 'Bucket and folder name are required' },
+        { success: false, error: bucketValidation.error },
         { status: 400 }
       );
     }
 
-    if (!isBucketAllowed(bucket)) {
+    // Validate folder name
+    const folderValidation = validateFileName(sanitizedFolderName);
+    if (!folderValidation.isValid) {
       return NextResponse.json(
-        { success: false, error: 'Bucket not allowed' },
+        { success: false, error: `Invalid folder name: ${folderValidation.error}` },
+        { status: 400 }
+      );
+    }
+
+    // Validate current path
+    if (sanitizedCurrentPath) {
+      const pathValidation = validatePath(sanitizedCurrentPath);
+      if (!pathValidation.isValid) {
+        return NextResponse.json(
+          { success: false, error: pathValidation.error },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if user has WRITE permission for this bucket
+    try {
+      await requireBucketPermission(request, bucketName, 'write');
+    } catch (error: any) {
+      return NextResponse.json(
+        { success: false, error: error.message },
         { status: 403 }
       );
     }
 
-    // Sanitize folder name
-    const sanitizedFolderName = folderName.replace(/[^a-zA-Z0-9-_]/g, '_');
-    
     // Create the full path for the folder
     let folderPath: string;
-    if (currentPath && currentPath.length > 0) {
+    if (sanitizedCurrentPath && sanitizedCurrentPath.length > 0) {
       // Ensure currentPath ends with '/' if it doesn't already
-      const normalizedCurrentPath = currentPath.endsWith('/') ? currentPath : currentPath + '/';
+      const normalizedCurrentPath = sanitizedCurrentPath.endsWith('/') ? sanitizedCurrentPath : sanitizedCurrentPath + '/';
       folderPath = `${normalizedCurrentPath}${sanitizedFolderName}/`;
     } else {
       folderPath = `${sanitizedFolderName}/`;
     }
 
-    console.log('Creating folder:', { folderName, sanitizedFolderName, currentPath, folderPath });
+    console.log('Creating folder:', { folderName, sanitizedFolderName, currentPath: sanitizedCurrentPath, folderPath });
 
     // Create an empty file to represent the folder in GCS
-    const bucketRef = storage.bucket(bucket);
+    const bucketRef = storage.bucket(bucketName);
     const file = bucketRef.file(`${folderPath}.keep`);
     
     await file.save('', {
@@ -75,4 +84,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

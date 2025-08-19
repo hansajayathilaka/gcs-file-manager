@@ -1,30 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import storage, { isBucketAllowed } from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import storage from '@/lib/gcs';
+import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
+import { validateBucketName, validatePath, validateBulkUpload, sanitizeString } from '@/lib/validation';
+import { logger } from '@/lib/logger';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const token = authHeader.substring(7);
+export const POST = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (err) {
-    throw new Error('Invalid authorization token');
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
 
     const formData = await request.formData();
-    const bucketName = formData.get('bucket') as string;
-    const currentPath = formData.get('currentPath') as string || '';
+    const bucketName = sanitizeString(formData.get('bucket') as string);
+    const currentPath = sanitizeString(formData.get('currentPath') as string || '');
+
+    // Validate bucket name
+    const bucketValidation = validateBucketName(bucketName);
+    if (!bucketValidation.isValid) {
+      return NextResponse.json(
+        { success: false, error: bucketValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Validate current path
+    const pathValidation = validatePath(currentPath);
+    if (!pathValidation.isValid) {
+      return NextResponse.json(
+        { success: false, error: pathValidation.error },
+        { status: 400 }
+      );
+    }
 
     // Get all files from the form data
     const files: File[] = [];
@@ -34,42 +37,41 @@ export async function POST(request: NextRequest) {
       if (key.startsWith('file-') && value instanceof File) {
         files.push(value);
         const filePathKey = key.replace('file-', 'path-');
-        const relativePath = formData.get(filePathKey) as string || '';
+        const relativePath = sanitizeString(formData.get(filePathKey) as string || '');
+        
+        // Validate each file path
+        const filePathValidation = validatePath(relativePath);
+        if (!filePathValidation.isValid) {
+          return NextResponse.json(
+            { success: false, error: `Invalid file path: ${filePathValidation.error}` },
+            { status: 400 }
+          );
+        }
+        
         filePaths.push(relativePath);
       }
     }
 
-    if (files.length === 0) {
+    // Validate bulk upload
+    const uploadValidation = validateBulkUpload(files);
+    if (!uploadValidation.isValid) {
       return NextResponse.json(
-        { success: false, error: 'No files provided' },
+        { success: false, error: uploadValidation.error, details: uploadValidation.details },
         { status: 400 }
       );
     }
 
-    if (!bucketName) {
+    // Check if user has WRITE permission for this bucket
+    try {
+      await requireBucketPermission(request, bucketName, 'write');
+    } catch (error: any) {
       return NextResponse.json(
-        { success: false, error: 'No bucket specified' },
-        { status: 400 }
-      );
-    }
-
-    if (!isBucketAllowed(bucketName)) {
-      return NextResponse.json(
-        { success: false, error: 'Bucket not allowed' },
+        { success: false, error: error.message },
         { status: 403 }
       );
     }
 
-    console.log('Upload API - Processing files:', {
-      totalFiles: files.length,
-      bucketName,
-      currentPath,
-      fileDetails: files.map((f, i) => ({
-        name: f.name,
-        relativePath: filePaths[i],
-        size: f.size
-      }))
-    });
+    logger.fileOperation('upload', bucketName, currentPath, user.uid);
 
     const bucket = storage.bucket(bucketName);
     const uploadResults: any[] = [];
@@ -109,14 +111,7 @@ export async function POST(request: NextRequest) {
             filePath = pathParts.join('/');
           }
           
-          console.log('Upload API - Folder upload path construction:', {
-            originalName: actualFileName,
-            relativePath,
-            currentPath,
-            pathParts,
-            fileName,
-            finalFilePath: filePath
-          });
+          logger.debug('Folder upload path construction', { relativePath, filePath });
         } else {
           // Regular file upload
           if (currentPath && currentPath.length > 0) {
@@ -127,13 +122,7 @@ export async function POST(request: NextRequest) {
           }
         }
         
-        console.log('Upload API - File path construction:', {
-          originalName: actualFileName,
-          relativePath,
-          currentPath,
-          fileName,
-          finalFilePath: filePath
-        });
+        logger.debug('File path construction', { fileName, currentPath, filePath });
         
         const fileBuffer = Buffer.from(await file.arrayBuffer());
         const gcsFile = bucket.file(filePath);
@@ -146,6 +135,8 @@ export async function POST(request: NextRequest) {
               originalName: actualFileName,
               uploadTimestamp: new Date().toISOString(),
               relativePath: relativePath || '',
+              uploadedBy: user.uid,
+              uploaderEmail: user.email,
             },
           },
         });
@@ -157,7 +148,7 @@ export async function POST(request: NextRequest) {
           relativePath: relativePath || '',
         });
       } catch (fileError) {
-        console.error(`Error uploading file ${file.name}:`, fileError);
+        logger.error(`Error uploading file ${file.name}`, fileError, { bucket: bucketName, userId: user.uid });
         uploadResults.push({
           success: false,
           fileName: file.name.split('/').pop() || file.name, // Extract just filename for error reporting
@@ -178,10 +169,10 @@ export async function POST(request: NextRequest) {
       failCount,
     });
   } catch (error) {
-    console.error('Error uploading files:', error);
+    logger.error('Error uploading files', error, { bucket: bucketName, userId: user.uid });
     return NextResponse.json(
       { success: false, error: 'Failed to upload files' },
       { status: 500 }
     );
   }
-}
+});

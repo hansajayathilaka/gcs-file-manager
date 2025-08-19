@@ -1,38 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
-import storage, { isBucketAllowed } from '@/lib/gcs';
-
-async function verifyAuth(request: NextRequest) {
-  // Try authorization header first
-  const authHeader = request.headers.get('authorization');
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const idToken = authHeader.substring(7);
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(idToken);
-      return decodedToken;
-    } catch (error) {
-      // Fall through to try query parameter
-    }
-  }
-
-  // Try token from query parameter (for HTML5 video element)
-  const token = request.nextUrl.searchParams.get('token');
-  if (token) {
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      return decodedToken;
-    } catch (error) {
-      throw new Error('Invalid token');
-    }
-  }
-
-  throw new Error('No authorization token provided');
-}
+import storage from '@/lib/gcs';
+import { verifyAuth, requireBucketPermission } from '@/lib/auth-middleware';
 
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication
-    await verifyAuth(request);
+    // Verify authentication (supports both header and query parameter for video streaming)
+    const user = await verifyAuth(request);
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
@@ -43,9 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    // Check if bucket is allowed
-    if (!isBucketAllowed(bucket)) {
-      return NextResponse.json({ error: 'Bucket not allowed' }, { status: 403 });
+    // Check if user has READ permission for this bucket
+    try {
+      await requireBucketPermission(request, bucket, 'read');
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     const bucketRef = storage.bucket(bucket);
