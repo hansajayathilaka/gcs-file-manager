@@ -2,16 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['@google-cloud/storage'],
   experimental: {
-    serverComponentsExternalPackages: ['@google-cloud/storage'],
     serverActions: {
       allowedOrigins: ['localhost:3000', '*.run.app']
     }
   },
-  // Disable telemetry for production builds
-  telemetry: false,
-  // Enable SWC minification for better performance
-  swcMinify: true,
   // Optimize images
   images: {
     domains: ['storage.googleapis.com', 'storage.cloud.google.com'],
