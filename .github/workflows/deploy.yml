@@ -52,6 +52,8 @@ jobs:
             --build-arg GOOGLE_CLOUD_PROJECT_ID="${{ env.PROJECT_ID }}" \
             --build-arg NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
             --build-arg NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+            --build-arg ALLOWED_ORIGINS="${{ vars.ALLOWED_ORIGINS }}" \
+            --build-arg NEXT_PUBLIC_DOMAIN="${{ vars.NEXT_PUBLIC_DOMAIN }}" \
             -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" ./
           docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}"
 
@@ -77,6 +79,8 @@ jobs:
           sed -i "s|GCP_PROJECT_ID_PLACEHOLDER|${{ env.PROJECT_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_SECRET_PLACEHOLDER|${{ secrets.NEXTAUTH_SECRET }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_URL_PLACEHOLDER|${{ vars.NEXTAUTH_URL }}|g" cloudrun-service-updated.yaml
+          sed -i "s|ALLOWED_ORIGINS_PLACEHOLDER|${{ vars.ALLOWED_ORIGINS }}|g" cloudrun-service-updated.yaml
+          sed -i "s|NEXT_PUBLIC_DOMAIN_PLACEHOLDER|${{ vars.NEXT_PUBLIC_DOMAIN }}|g" cloudrun-service-updated.yaml
           
           # Log the final spec file for debugging
           echo "=== Final Cloud Run Service Spec ==="

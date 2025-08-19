@@ -58,6 +58,11 @@ spec:
           value: "NEXTAUTH_SECRET_PLACEHOLDER"
         - name: NEXTAUTH_URL
           value: "NEXTAUTH_URL_PLACEHOLDER"
+        # Allowed hosts configuration
+        - name: ALLOWED_ORIGINS
+          value: "ALLOWED_ORIGINS_PLACEHOLDER"
+        - name: NEXT_PUBLIC_DOMAIN
+          value: "NEXT_PUBLIC_DOMAIN_PLACEHOLDER"
         resources:
           limits:
             cpu: "1000m"

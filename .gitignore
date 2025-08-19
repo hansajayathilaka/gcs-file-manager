@@ -75,6 +75,7 @@ service-account*.json
 firebase-adminsdk*.json
 google-cloud-key*.json
 *.log
+cloudrun-service-updated.yaml
 
 # IDE files
 .vscode/settings.json
