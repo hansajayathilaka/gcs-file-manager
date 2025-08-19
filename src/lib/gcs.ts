@@ -9,14 +9,5 @@ const storage = new Storage({
   // For local development, you'll need to set up Application Default Credentials
 });
 
-export const getAllowedBuckets = (): string[] => {
-  const buckets = process.env.ALLOWED_BUCKETS;
-  return buckets ? buckets.split(',').map(bucket => bucket.trim()) : [];
-};
-
-export const isBucketAllowed = (bucketName: string): boolean => {
-  const allowedBuckets = getAllowedBuckets();
-  return allowedBuckets.includes(bucketName);
-};
 
 export default storage;

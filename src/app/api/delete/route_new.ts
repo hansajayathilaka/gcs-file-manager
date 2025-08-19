@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import storage, { isBucketAllowed } from '@/lib/gcs';
+import storage from '@/lib/gcs';
 import { adminAuth } from '@/lib/firebase-admin';
 
 async function verifyAuth(request: NextRequest) {
@@ -33,12 +33,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!isBucketAllowed(bucketName)) {
-      return NextResponse.json(
-        { success: false, error: 'Bucket not allowed' },
-        { status: 403 }
-      );
-    }
 
     // Delete file from GCS
     const bucket = storage.bucket(bucketName);
