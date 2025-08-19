@@ -6,6 +6,7 @@ metadata:
     cloud.googleapis.com/location: asia-southeast1
   annotations:
     run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
 spec:
   template:
     metadata:
@@ -13,9 +14,7 @@ spec:
         run.googleapis.com/startupProbeType: Default
       annotations:
         autoscaling.knative.dev/maxScale: "2"
-        run.googleapis.com/cloudsql-instances: ""
-        run.googleapis.com/cpu-throttling: "true"
-        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/startup-cpu-boost: "false"
         run.googleapis.com/startupProbe: |
           {
             "timeoutSeconds": 240,
