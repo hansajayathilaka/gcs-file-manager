@@ -383,7 +383,7 @@ export default function FilePreview({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-gray-900 truncate">
-              {file.originalName || file.name}
+              {file.name}
             </h2>
             <p className="text-xs text-gray-500">{fileType.description}</p>
           </div>
@@ -412,8 +412,15 @@ export default function FilePreview({
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-semibold text-gray-800">Name</label>
-              <p className="mt-1 text-sm text-gray-800 break-all font-medium">{file.originalName || file.name}</p>
+              <p className="mt-1 text-sm text-gray-800 break-all font-medium">{file.name}</p>
             </div>
+
+            {file.originalName && file.originalName !== file.name && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-800">Original Name</label>
+                <p className="mt-1 text-sm text-gray-500 break-all">{file.originalName}</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-gray-800">Type</label>

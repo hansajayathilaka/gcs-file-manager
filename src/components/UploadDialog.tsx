@@ -210,7 +210,7 @@ export default function UploadDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -354,7 +354,7 @@ export default function UploadDialog({
             {uploadMode === 'folder' && selectedFiles.length > 0 && (selectedFiles[0] as any).webkitRelativePath && (
               <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
                 <p className="text-xs text-blue-700">
-                  <strong>Folder Upload:</strong> The folder structure "{(selectedFiles[0] as any).webkitRelativePath.split('/')[0]}" will be preserved.
+                  <strong>Folder Upload:</strong> The folder structure &quot;{(selectedFiles[0] as any).webkitRelativePath.split('/')[0]}&quot; will be preserved.
                   {selectedPath ? ` It will be placed inside: /${selectedPath}` : ' It will be placed in the root directory.'}
                 </p>
               </div>

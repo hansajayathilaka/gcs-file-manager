@@ -1,26 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import storage, { getAllowedBuckets, isBucketAllowed } from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import storage from '@/lib/gcs';
+import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
+import { getManagedBucket, getAllUserPermissions } from '@/lib/database';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const token = authHeader.substring(7);
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (err) {
-    throw new Error('Invalid authorization token');
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
 
     const { searchParams } = new URL(request.url);
     const bucketName = searchParams.get('bucket');
@@ -28,17 +12,37 @@ export async function GET(request: NextRequest) {
     const getAllFolders = searchParams.get('getAllFolders') === 'true';
 
     if (!bucketName) {
-      // Return list of allowed buckets
-      const allowedBuckets = getAllowedBuckets();
+      // Return list of user's accessible buckets with their permissions
+      let userBuckets: any[];
+      
+      if (user.profile.role === 'admin') {
+        const { getAllManagedBuckets } = await import('@/lib/database');
+        const managedBuckets = await getAllManagedBuckets();
+        userBuckets = managedBuckets.map(bucket => ({ 
+          name: bucket.name, 
+          permissions: ['read', 'write', 'delete'] // Admins have all permissions
+        }));
+      } else {
+        // Get user's detailed permissions
+        const userPermissions = await getAllUserPermissions(user.uid);
+        userBuckets = userPermissions.map(permission => ({
+          name: permission.bucketName,
+          permissions: permission.permissions
+        }));
+      }
+      
       return NextResponse.json({
         success: true,
-        buckets: allowedBuckets.map(name => ({ name })),
+        buckets: userBuckets,
       });
     }
 
-    if (!isBucketAllowed(bucketName)) {
+    // Check if user has READ permission for this bucket
+    try {
+      await requireBucketPermission(request, bucketName, 'read');
+    } catch (error: any) {
       return NextResponse.json(
-        { success: false, error: 'Bucket not allowed' },
+        { success: false, error: error.message },
         { status: 403 }
       );
     }
@@ -147,9 +151,9 @@ export async function GET(request: NextRequest) {
           const [metadata] = await file.getMetadata();
           const fileName = file.name.slice(prefix.length);
           
-          // Use original filename from custom metadata if available, otherwise use the stored filename
+          // Use the current filename as the display name (this reflects any renames)
           const customMetadata = (metadata as any).metadata || {};
-          const displayName = customMetadata.originalName || fileName;
+          const displayName = fileName;
           
           return {
             name: displayName,
@@ -181,4 +185,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

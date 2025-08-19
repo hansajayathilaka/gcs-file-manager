@@ -1,27 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import storage, { isBucketAllowed } from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import storage from '@/lib/gcs';
+import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const token = authHeader.substring(7);
+export const POST = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (err) {
-    throw new Error('Invalid authorization token');
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
-
     const { bucket, folderName, currentPath } = await request.json();
 
     if (!bucket || !folderName) {
@@ -31,9 +13,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!isBucketAllowed(bucket)) {
+    // Check if user has WRITE permission for this bucket
+    try {
+      await requireBucketPermission(request, bucket, 'write');
+    } catch (error: any) {
       return NextResponse.json(
-        { success: false, error: 'Bucket not allowed' },
+        { success: false, error: error.message },
         { status: 403 }
       );
     }
@@ -75,4 +60,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

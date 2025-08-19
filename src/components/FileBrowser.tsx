@@ -1,16 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   FolderIcon, 
   DocumentIcon, 
   TrashIcon, 
   ArrowDownTrayIcon,
   PlusIcon,
-  CloudArrowUpIcon 
+  CloudArrowUpIcon,
+  ShareIcon 
 } from '@heroicons/react/24/outline';
 import { FileTreeItem, CreateFolderRequest, FolderOption } from '@/types/fileSystem';
+import { useFileOperations } from '@/contexts/FileOperationsContext';
 import UploadDialog from './UploadDialog';
+import ContextMenu from './shared/ContextMenu';
+import {
+  DocumentDuplicateIcon,
+  ScissorsIcon,
+  ClipboardDocumentIcon,
+  PencilIcon,
+} from './shared/ContextMenu';
 
 interface FileBrowserProps {
   files: FileTreeItem[];
@@ -24,6 +33,10 @@ interface FileBrowserProps {
   onDownload: (item: FileTreeItem) => void;
   onBulkDownload: (items: FileTreeItem[]) => void;
   onFilePreview: (item: FileTreeItem) => void;
+  onShare?: (item: FileTreeItem) => void;
+  onManageShares?: () => void;
+  onRename?: (item: FileTreeItem) => void;
+  onPaste?: () => void;
   allFolders: FolderOption[];
   uploading?: boolean;
 }
@@ -40,9 +53,14 @@ export default function FileBrowser({
   onDownload,
   onBulkDownload,
   onFilePreview,
+  onShare,
+  onManageShares,
+  onRename,
+  onPaste,
   allFolders,
   uploading = false,
 }: FileBrowserProps) {
+  const { copyToClipboard, cutToClipboard, canPaste, hasClipboardItem } = useFileOperations();
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [dragOver, setDragOver] = useState(false);
@@ -51,26 +69,17 @@ export default function FileBrowser({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [highlightedItem, setHighlightedItem] = useState<string | null>(null);
-
-  // Add keyboard event listener for shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        handleClearSelection();
-      } else if (event.ctrlKey && event.key === 'a') {
-        event.preventDefault();
-        handleSelectAll();
-      } else if (event.key === 'Delete' && selectedItems.size > 0) {
-        event.preventDefault();
-        handleBulkDelete();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedItems.size]);
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{
+    isOpen: boolean;
+    position: { x: number; y: number };
+    item: FileTreeItem | null;
+  }>({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    item: null,
+  });
 
   // Add useEffect to handle indeterminate state for header checkbox
   useEffect(() => {
@@ -84,17 +93,95 @@ export default function FileBrowser({
     }
   }, [selectedItems.size, files.length]);
 
-  // Clear selection when navigating to different path
-  useEffect(() => {
-    handleClearSelection();
-  }, [currentPath]);
-
   const handleCreateFolder = () => {
     if (newFolderName.trim()) {
       onCreateFolder(newFolderName.trim());
       setNewFolderName('');
       setShowCreateFolder(false);
     }
+  };
+
+  // Context menu handlers
+  const handleContextMenu = (event: React.MouseEvent, item: FileTreeItem) => {
+    event.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      position: { x: event.clientX, y: event.clientY },
+      item,
+    });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, item: null });
+  };
+
+  const getContextMenuItems = (item: FileTreeItem) => {
+    const items = [
+      {
+        label: 'Copy',
+        icon: <DocumentDuplicateIcon className="w-4 h-4" />,
+        onClick: () => copyToClipboard(item),
+      },
+      {
+        label: 'Cut',
+        icon: <ScissorsIcon className="w-4 h-4" />,
+        onClick: () => cutToClipboard(item),
+      },
+    ];
+
+    if (canPaste(currentPath)) {
+      items.push({
+        label: 'Paste',
+        icon: <ClipboardDocumentIcon className="w-4 h-4" />,
+        onClick: () => onPaste?.(),
+      });
+    }
+
+    items.push(
+      {
+        label: '',
+        icon: null,
+        onClick: () => {},
+        separator: true,
+      },
+      {
+        label: 'Rename',
+        icon: <PencilIcon className="w-4 h-4" />,
+        onClick: () => onRename?.(item),
+      }
+    );
+
+    if (!item.isFolder) {
+      items.push(
+        {
+          label: 'Download',
+          icon: <ArrowDownTrayIcon className="w-4 h-4" />,
+          onClick: () => onDownload(item),
+        },
+        {
+          label: 'Share',
+          icon: <ShareIcon className="w-4 h-4" />,
+          onClick: () => onShare?.(item),
+          disabled: !onShare,
+        }
+      );
+    }
+
+    items.push(
+      {
+        label: '',
+        icon: null,
+        onClick: () => {},
+        separator: true,
+      },
+      {
+        label: 'Delete',
+        icon: <TrashIcon className="w-4 h-4" />,
+        onClick: () => onDelete(item.name, item.isFolder),
+      }
+    );
+
+    return items;
   };
 
   const handleCheckboxSelect = (itemPath: string) => {
@@ -143,10 +230,10 @@ export default function FileBrowser({
     }
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     setSelectedItems(new Set(files.map(f => f.path)));
     setIsMultiSelectMode(true);
-  };
+  }, [files]);
 
   const handleHeaderCheckboxSelect = () => {
     if (selectedItems.size === files.length && files.length > 0) {
@@ -158,13 +245,13 @@ export default function FileBrowser({
     }
   };
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     setSelectedItems(new Set());
     setIsMultiSelectMode(false);
     setHighlightedItem(null);
-  };
+  }, []);
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedItems.size === 0) return;
     
     const itemsToDelete = files.filter(f => selectedItems.has(f.path));
@@ -197,17 +284,17 @@ export default function FileBrowser({
       }
     }
     
-    // Show summary of results
+    // Show summary of results using notifications instead of alert
     if (failures.length > 0) {
-      alert(`Deleted ${successCount} item${successCount !== 1 ? 's' : ''} successfully. Failed to delete: ${failures.join(', ')}`);
+      // We'll handle this in the parent component through better error handling
+      console.warn(`Bulk delete completed with ${failures.length} failures`);
     } else if (successCount > 0) {
-      // Only show success message if there were no failures and items were actually deleted
       console.log(`Successfully deleted ${successCount} item${successCount !== 1 ? 's' : ''}`);
     }
     
     // Clear selection after deletion attempt
     handleClearSelection();
-  };
+  }, [selectedItems, files, onDelete, handleClearSelection]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -354,7 +441,8 @@ export default function FileBrowser({
     const itemsToDownload = files.filter(f => selectedItems.has(f.path) && !f.isFolder);
     
     if (itemsToDownload.length === 0) {
-      alert('No files selected for download. Folders cannot be downloaded.');
+      // Use console.warn instead of alert for better UX
+      console.warn('No files selected for download. Folders cannot be downloaded.');
       return;
     }
     
@@ -366,6 +454,47 @@ export default function FileBrowser({
       onBulkDownload(itemsToDownload);
     }
   };
+
+  // Add keyboard event listener for shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleClearSelection();
+        setContextMenu({ isOpen: false, position: { x: 0, y: 0 }, item: null });
+      } else if (event.ctrlKey && event.key === 'a') {
+        event.preventDefault();
+        handleSelectAll();
+      } else if (event.key === 'Delete' && selectedItems.size > 0) {
+        event.preventDefault();
+        handleBulkDelete();
+      } else if (event.ctrlKey && event.key === 'c' && highlightedItem) {
+        event.preventDefault();
+        const item = files.find(f => f.path === highlightedItem);
+        if (item) copyToClipboard(item);
+      } else if (event.ctrlKey && event.key === 'x' && highlightedItem) {
+        event.preventDefault();
+        const item = files.find(f => f.path === highlightedItem);
+        if (item) cutToClipboard(item);
+      } else if (event.ctrlKey && event.key === 'v' && canPaste(currentPath)) {
+        event.preventDefault();
+        onPaste?.();
+      } else if (event.key === 'F2' && highlightedItem) {
+        event.preventDefault();
+        const item = files.find(f => f.path === highlightedItem);
+        if (item) onRename?.(item);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedItems.size, handleClearSelection, handleSelectAll, handleBulkDelete, canPaste, currentPath, copyToClipboard, cutToClipboard, files, highlightedItem, onPaste, onRename]);
+
+  // Clear selection when navigating to different path
+  useEffect(() => {
+    handleClearSelection();
+  }, [currentPath, handleClearSelection]);
 
   if (loading) {
     return (
@@ -402,6 +531,26 @@ export default function FileBrowser({
               <CloudArrowUpIcon className="h-4 w-4 mr-2" />
               Upload Files
             </button>
+
+            {hasClipboardItem() && canPaste(currentPath) && (
+              <button
+                onClick={onPaste}
+                className="inline-flex items-center px-3 py-2 border border-green-300 shadow-sm text-sm font-medium rounded-md text-green-700 bg-white hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <ClipboardDocumentIcon className="h-4 w-4 mr-2" />
+                Paste
+              </button>
+            )}
+
+            {onManageShares && (
+              <button
+                onClick={onManageShares}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <ShareIcon className="h-4 w-4 mr-2" />
+                Manage Shares
+              </button>
+            )}
 
             {/* Multi-select actions */}
             {isMultiSelectMode && (
@@ -568,6 +717,7 @@ export default function FileBrowser({
                       // Double-click handles both folders and files
                       handleRowDoubleClick(item.path);
                     }}
+                    onContextMenu={(e) => handleContextMenu(e, item)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
@@ -614,6 +764,18 @@ export default function FileBrowser({
                             <ArrowDownTrayIcon className="h-4 w-4" />
                           </button>
                         )}
+                        {!item.isFolder && onShare && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onShare(item);
+                            }}
+                            className="text-green-600 hover:text-green-800"
+                            title="Share"
+                          >
+                            <ShareIcon className="h-4 w-4" />
+                          </button>
+                        )}
                         {!isMultiSelectMode && (
                           <button
                             onClick={(e) => {
@@ -658,6 +820,14 @@ export default function FileBrowser({
           loading={uploading}
           preSelectedFiles={selectedFiles}
         />
+
+      {/* Context Menu */}
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        onClose={handleCloseContextMenu}
+        items={contextMenu.item ? getContextMenuItems(contextMenu.item) : []}
+      />
     </div>
   );
 }

@@ -1,27 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
-import storage, { isBucketAllowed } from '@/lib/gcs';
+import storage from '@/lib/gcs';
+import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const idToken = authHeader.substring(7);
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(idToken);
-    return decodedToken;
-  } catch (error) {
-    throw new Error('Invalid token');
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
-
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
     const bucket = searchParams.get('bucket');
@@ -32,9 +14,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    // Check if bucket is allowed
-    if (!isBucketAllowed(bucket)) {
-      return NextResponse.json({ error: 'Bucket not allowed' }, { status: 403 });
+    // Check if user has READ permission for this bucket
+    try {
+      await requireBucketPermission(request, bucket, 'read');
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     const bucketRef = storage.bucket(bucket);
@@ -141,4 +125,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

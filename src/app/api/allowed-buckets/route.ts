@@ -1,39 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllowedBuckets } from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import { withAuth } from '@/lib/auth-middleware';
+import { getUserBuckets } from '@/lib/database';
 
-async function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('No authorization token provided');
-  }
-
-  const token = authHeader.substring(7);
+// GET - Get buckets accessible to the current user
+export const GET = withAuth(async (request: NextRequest, user) => {
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken;
-  } catch (err) {
-    throw new Error('Invalid authorization token');
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    // Verify authentication
-    await verifyAuth(request);
-
-    // Get allowed buckets from environment variable
-    const allowedBuckets = getAllowedBuckets();
+    // Admins can see all buckets, regular users only see their assigned buckets
+    let userBuckets: string[];
+    
+    if (user.profile.role === 'admin') {
+      // For admin users, get all managed buckets from database
+      const { getAllManagedBuckets } = await import('@/lib/database');
+      const managedBuckets = await getAllManagedBuckets();
+      userBuckets = managedBuckets.map(bucket => bucket.name);
+    } else {
+      // For regular users, get their assigned buckets
+      userBuckets = await getUserBuckets(user.uid);
+    }
 
     return NextResponse.json({
       success: true,
-      buckets: allowedBuckets,
+      buckets: userBuckets,
+      userRole: user.profile.role,
     });
   } catch (error) {
-    console.error('Error getting allowed buckets:', error);
+    console.error('Error getting user buckets:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to get allowed buckets' },
+      { success: false, error: 'Failed to get user buckets' },
       { status: 500 }
     );
   }
-}
+});
