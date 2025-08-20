@@ -1,16 +1,26 @@
 // Runtime configuration utility
 // This ensures environment variables are read at runtime, not build time
 
+// Function to get runtime environment variables from window object or process.env
+function getRuntimeEnv(key: string): string | undefined {
+  if (typeof window !== 'undefined') {
+    // Client-side: get from window.__ENV__ or process.env
+    return (window as any).__ENV__?.[key] || process.env[key];
+  }
+  // Server-side: get from process.env
+  return process.env[key];
+}
+
 export function getRuntimeConfig() {
   return {
     // Firebase client config (public)
     firebase: {
-      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+      apiKey: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_API_KEY'),
+      authDomain: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+      projectId: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
+      storageBucket: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+      messagingSenderId: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+      appId: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_APP_ID'),
     },
     
     // Server-side config (private)

@@ -2,11 +2,17 @@
 
 ## Overview
 
-Your application uses environment variables from `.env.local` file for local development. For Cloud Run deployment, these variables are provided through:
+Your application uses **runtime environment variables** - this means:
+
+✅ **Docker images are built WITHOUT environment variables** (more secure)
+✅ **Environment variables are loaded at container startup** (runtime)
+✅ **Firebase and services initialize lazily** (only when needed)
+
+For deployment, variables are provided through:
 
 1. **GitHub Variables** (for non-sensitive data)
-2. **GitHub Secrets** (for sensitive data like API keys)
-3. **Cloud Run environment variables** (injected at runtime)
+2. **GitHub Secrets** (for sensitive data like API keys)  
+3. **Cloud Run runtime environment variables** (injected when container starts)
 
 ## Required GitHub Variables
 
@@ -48,25 +54,30 @@ FIREBASE_API_KEY=your-firebase-api-key
 NEXTAUTH_SECRET=your-secure-random-string
 ```
 
-## How Environment Variables are Provided
+## How Runtime Environment Variables Work
 
-### Option 1: GitHub Variables/Secrets (Current Implementation)
-- Variables are stored in GitHub repository settings
-- Pipeline substitutes placeholders in `cloudrun-service.yaml`
-- Environment variables are baked into the Cloud Run service specification
+### Current Implementation (Runtime Variables)
+1. **Build Phase**: Docker image built WITHOUT any environment variables
+2. **Deploy Phase**: GitHub pipeline substitutes placeholders in `cloudrun-service.yaml`  
+3. **Runtime Phase**: Cloud Run injects environment variables when container starts
+4. **Initialization**: Firebase/services initialize lazily only when first accessed
 
-### Option 2: Cloud Run Environment Variables (Alternative)
-You can also set environment variables directly in Cloud Run:
+### Benefits of Runtime Configuration
+- 🔒 **Security**: No sensitive data baked into Docker images
+- 🚀 **Flexibility**: Same image works across different environments  
+- ⚡ **Performance**: Faster builds, lazy service initialization
+- 🔄 **Maintainability**: Easy to update configuration without rebuilding images
 
+### Alternative Options
+
+**Option 1: Direct Cloud Run Configuration**
 ```bash
 gcloud run services update YOUR_SERVICE \
   --region=us-central1 \
   --set-env-vars="GOOGLE_CLOUD_PROJECT_ID=your-project-id"
 ```
 
-### Option 3: Google Secret Manager (Recommended for Production)
-For production environments, consider using Google Secret Manager:
-
+**Option 2: Google Secret Manager (Recommended for Production)**
 ```yaml
 env:
 - name: FIREBASE_SERVICE_ACCOUNT_KEY
@@ -78,8 +89,8 @@ env:
 
 ## Environment Variable Priority
 
-1. **Cloud Run service specification** (highest priority)
-2. **Container environment variables**
+1. **Cloud Run runtime environment variables** (highest priority)
+2. **Container environment variables** (if any)
 3. **Default values in code**
 
 ## Security Best Practices
@@ -100,11 +111,16 @@ env:
 
 ## Local Development vs Production
 
-| Environment | Source | Usage |
-|-------------|--------|-------|
-| Local | `.env.local` | Next.js automatically loads |
-| Cloud Run | Service Spec | Injected at container startup |
-| CI/CD | GitHub Variables/Secrets | Substituted during deployment |
+| Environment | Source | Usage | Initialization |
+|-------------|--------|-------|----------------|
+| Local | `.env.local` | Next.js automatically loads | Runtime lazy loading |
+| Cloud Run | Service Spec | Injected at container startup | Runtime lazy loading |
+| CI/CD | GitHub Variables/Secrets | Substituted during deployment | N/A (build time) |
+
+**Key Changes:**
+- 🆕 **Build time**: No environment variables needed
+- 🆕 **Runtime**: All environment variables loaded when container starts
+- 🆕 **Lazy loading**: Firebase/services initialize only when first used
 
 ## Troubleshooting
 

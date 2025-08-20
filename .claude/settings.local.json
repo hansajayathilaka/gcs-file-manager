@@ -14,7 +14,9 @@
       "Bash(npm install:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(docker build:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

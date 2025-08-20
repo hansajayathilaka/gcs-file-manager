@@ -16,6 +16,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Runtime environment variables script */}
+        <script src="/runtime-env.js" async />
+      </head>
       <body
         className="antialiased font-sans"
         suppressHydrationWarning={true}
