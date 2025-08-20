@@ -29,6 +29,7 @@ interface FileBrowserProps {
   loading: boolean;
   onNavigate: (path: string) => void;
   onDelete: (fileName: string, isFolder: boolean) => Promise<void>;
+  onBulkDelete?: (deleteRequests: Array<{fileName: string, isFolder: boolean}>) => Promise<void>;
   onUpload: (files: File[] | FileList, destinationPath: string) => void;
   onCreateFolder: (folderName: string) => void;
   onDownload: (item: FileTreeItem) => void;
@@ -49,6 +50,7 @@ export default function FileBrowser({
   loading,
   onNavigate,
   onDelete,
+  onBulkDelete,
   onUpload,
   onCreateFolder,
   onDownload,
@@ -257,31 +259,22 @@ export default function FileBrowser({
     
     const itemsToDelete = files.filter(f => selectedItems.has(f.path));
     
-    // Delete items one by one and track failures
-    const failures: string[] = [];
-    let successCount = 0;
-    
-    for (const item of itemsToDelete) {
-      try {
-        await onDelete(item.name, item.isFolder);
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to delete ${item.name}:`, error);
-        failures.push(item.name);
-      }
-    }
-    
-    // Show summary of results using notifications instead of alert
-    if (failures.length > 0) {
-      // We'll handle this in the parent component through better error handling
-      console.warn(`Bulk delete completed with ${failures.length} failures`);
-    } else if (successCount > 0) {
-      console.log(`Successfully deleted ${successCount} item${successCount !== 1 ? 's' : ''}`);
+    // Prepare delete requests for bulk API
+    const deleteRequests = itemsToDelete.map(item => ({
+      fileName: item.storedPath || item.name,
+      isFolder: item.isFolder
+    }));
+
+    try {
+      // Call the parent's bulk delete handler
+      await onBulkDelete?.(deleteRequests);
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
     }
     
     // Clear selection after deletion attempt
     handleClearSelection();
-  }, [selectedItems, files, onDelete, handleClearSelection]);
+  }, [selectedItems, files, onBulkDelete, handleClearSelection]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;

@@ -11,7 +11,10 @@ import {
   PlusIcon,
   UserIcon,
   ShieldCheckIcon,
-  FolderIcon
+  FolderIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
 
 const UserManagement: React.FC = () => {
@@ -26,6 +29,7 @@ const UserManagement: React.FC = () => {
   const [deactivateLoading, setDeactivateLoading] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeactivated, setShowDeactivated] = useState(true);
 
   useEffect(() => {
     fetchUsers();
@@ -354,10 +358,72 @@ const UserManagement: React.FC = () => {
     );
   }
 
+  // Filter users based on showDeactivated toggle
+  const filteredUsers = showDeactivated 
+    ? users 
+    : users.filter(user => user.isActive);
+
+  // Calculate user statistics
+  const activeUsers = users.filter(user => user.isActive);
+  const deactivatedUsers = users.filter(user => !user.isActive);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
+        <div className="flex items-center space-x-3">
+          <label className="flex items-center text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={showDeactivated}
+              onChange={(e) => setShowDeactivated(e.target.checked)}
+              className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            Show deactivated users
+          </label>
+          {showDeactivated ? (
+            <EyeIcon className="h-4 w-4 text-gray-400" />
+          ) : (
+            <EyeSlashIcon className="h-4 w-4 text-gray-400" />
+          )}
+        </div>
+      </div>
+
+      {/* User Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <UserIcon className="h-5 w-5 text-green-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Active Users</p>
+              <p className="text-lg font-semibold text-gray-900">{activeUsers.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <UserIcon className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Deactivated Users</p>
+              <p className="text-lg font-semibold text-gray-900">{deactivatedUsers.length}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <UserGroupIcon className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-500">Total Users</p>
+              <p className="text-lg font-semibold text-gray-900">{users.length}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -368,9 +434,22 @@ const UserManagement: React.FC = () => {
 
       {/* Users Table */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul className="divide-y divide-gray-200">
-          {users.map((userItem) => (
-            <li key={userItem.uid} className="px-6 py-4">
+        {filteredUsers.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {showDeactivated ? 'No users found' : 'No active users found'}
+            </h3>
+            <p className="text-gray-500">
+              {showDeactivated 
+                ? 'There are no users in the system.' 
+                : 'All users are currently deactivated. Toggle "Show deactivated users" to see them.'}
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-200">
+            {filteredUsers.map((userItem) => (
+            <li key={userItem.uid} className={`px-6 py-4 ${!userItem.isActive ? 'opacity-60 bg-gray-50' : ''}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
@@ -398,11 +477,16 @@ const UserManagement: React.FC = () => {
                   </div>
                   <div className="ml-4">
                     <div className="flex items-center">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className={`text-sm font-medium ${!userItem.isActive ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
                         {userItem.displayName || userItem.email}
                       </p>
                       {userItem.role === 'admin' && (
                         <ShieldCheckIcon className="ml-2 h-4 w-4 text-indigo-600" />
+                      )}
+                      {!userItem.isActive && (
+                        <span className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                          Deactivated
+                        </span>
                       )}
                     </div>
                     <p className="text-sm text-gray-500">{userItem.email}</p>
@@ -415,7 +499,7 @@ const UserManagement: React.FC = () => {
                   <select
                     value={userItem.role}
                     onChange={(e) => updateUserRole(userItem.uid, e.target.value as 'admin' | 'user')}
-                    disabled={userItem.uid === user?.uid}
+                    disabled={userItem.uid === user?.uid || !userItem.isActive}
                     className="text-sm border border-gray-300 rounded-md px-3 py-1 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100"
                   >
                     <option value="user">User</option>
@@ -423,24 +507,26 @@ const UserManagement: React.FC = () => {
                   </select>
                   <button
                     onClick={() => openPermissionModal(userItem)}
-                    className="text-indigo-600 hover:text-indigo-800 p-2"
-                    title="Manage bucket permissions"
+                    disabled={!userItem.isActive}
+                    className={`p-2 ${!userItem.isActive ? 'text-gray-400 cursor-not-allowed' : 'text-indigo-600 hover:text-indigo-800'}`}
+                    title={!userItem.isActive ? 'Cannot manage permissions for deactivated user' : 'Manage bucket permissions'}
                   >
                     <FolderIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => initiateDeactivate(userItem.uid)}
-                    disabled={userItem.uid === user?.uid}
-                    className="text-red-600 hover:text-red-800 p-2 disabled:text-gray-400"
-                    title="Deactivate user"
+                    disabled={userItem.uid === user?.uid || !userItem.isActive}
+                    className={`p-2 ${(userItem.uid === user?.uid || !userItem.isActive) ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-800'}`}
+                    title={!userItem.isActive ? 'User already deactivated' : userItem.uid === user?.uid ? 'Cannot deactivate yourself' : 'Deactivate user'}
                   >
                     <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             </li>
-          ))}
-        </ul>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Permission Management Modal */}

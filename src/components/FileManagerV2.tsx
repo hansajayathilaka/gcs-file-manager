@@ -315,6 +315,49 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     }
   };
 
+  const handleBulkDelete = async (deleteRequests: Array<{fileName: string, isFolder: boolean}>) => {
+    if (!selectedBucket) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch('/api/delete/bulk', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({
+          bucket: selectedBucket,
+          files: deleteRequests,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        showSuccess('Bulk Delete Successful', `${data.successCount} item${data.successCount !== 1 ? 's' : ''} deleted successfully`);
+      } else {
+        // Show detailed results for partial failures
+        const failedItems = data.results?.filter((r: any) => !r.success) || [];
+        if (failedItems.length > 0) {
+          const failedNames = failedItems.slice(0, 3).map((f: any) => f.fileName).join(', ');
+          const moreText = failedItems.length > 3 ? ` and ${failedItems.length - 3} more` : '';
+          showError('Bulk Delete Partially Failed', 
+            `${data.successCount || 0} succeeded, ${data.failureCount || 0} failed. Failed items: ${failedNames}${moreText}`);
+        } else {
+          showError('Bulk Delete Failed', data.error || 'Unknown error occurred');
+        }
+      }
+      
+      // Always reload files to show current state
+      loadFiles(selectedBucket, currentPath);
+    } catch (error) {
+      console.error('Error in bulk delete:', error);
+      showError('Bulk Delete Failed', 'Network error occurred. Please try again.');
+    }
+  };
+
   const handleDownload = async (item: FileTreeItem) => {
     if (!selectedBucket) return;
 
@@ -581,6 +624,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
               loading={loading}
               onNavigate={handleNavigate}
               onDelete={handleDelete}
+              onBulkDelete={handleBulkDelete}
               onUpload={handleUpload}
               onCreateFolder={handleCreateFolder}
               onDownload={handleDownload}
