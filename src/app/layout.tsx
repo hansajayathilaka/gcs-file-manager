@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Runtime environment variables script */}
-        <script src="/runtime-env.js" async />
+        <script src="/_next/static/runtime-env.js" async />
       </head>
       <body
         className="antialiased font-sans"

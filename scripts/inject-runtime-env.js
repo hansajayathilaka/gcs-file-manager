@@ -45,18 +45,24 @@ console.log('Runtime environment variables loaded:', window.__ENV__);
       process.exit(1);
     }
 
-    // Write the environment script to static directory
+    // Write the environment script to static directory (this is where Next.js serves static files from)
     const envScriptPath = path.join(staticDir, 'runtime-env.js');
     fs.writeFileSync(envScriptPath, scriptContent);
     
     console.log(`Runtime environment script written to: ${envScriptPath}`);
     
-    // Also write to public directory if it exists (for dev mode)
+    // Create a symlink or copy to public directory if accessible (for direct access via /runtime-env.js)
     const publicDir = path.join(process.cwd(), 'public');
     if (fs.existsSync(publicDir)) {
-      const publicEnvPath = path.join(publicDir, 'runtime-env.js');
-      fs.writeFileSync(publicEnvPath, scriptContent);
-      console.log(`Runtime environment script also written to: ${publicEnvPath}`);
+      try {
+        const publicEnvPath = path.join(publicDir, 'runtime-env.js');
+        // Try to write to public directory, but don't fail if we can't
+        fs.writeFileSync(publicEnvPath, scriptContent);
+        console.log(`Runtime environment script also written to: ${publicEnvPath}`);
+      } catch (publicError) {
+        console.warn(`Could not write to public directory (this is normal in production): ${publicError.message}`);
+        // This is expected in production - the .next/static version will be served instead
+      }
     }
 
   } catch (error) {

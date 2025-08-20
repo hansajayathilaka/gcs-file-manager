@@ -35,8 +35,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/scripts/inject-runtime-env.js ./scripts/inject-runtime-env.js
 COPY --from=builder /app/scripts/start.sh ./scripts/start.sh
 
-# Make start script executable and change ownership
-RUN chmod +x ./scripts/start.sh && chown nextjs:nodejs ./scripts/start.sh
+# Make start script executable and ensure proper permissions
+RUN chmod +x ./scripts/start.sh && \
+    chown -R nextjs:nodejs ./scripts/ && \
+    chown -R nextjs:nodejs ./.next/static && \
+    chown -R nextjs:nodejs ./public
 
 # Switch to non-root user
 USER nextjs
