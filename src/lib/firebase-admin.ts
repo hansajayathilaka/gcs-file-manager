@@ -1,15 +1,45 @@
-import { initializeApp, getApps, applicationDefault } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import { initializeApp, getApps, applicationDefault, App } from 'firebase-admin/app';
+import { getAuth, Auth } from 'firebase-admin/auth';
+import { getRuntimeConfig } from './runtime-config';
 
-const firebaseAdminConfig = {
-  credential: applicationDefault(),
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT_ID,
-};
+let adminApp: App | null = null;
+let adminAuth: Auth | null = null;
 
-// Initialize Firebase Admin
-const adminApp = getApps().length === 0 ? initializeApp(firebaseAdminConfig) : getApps()[0];
+// Lazy initialization function for Firebase Admin
+function initializeFirebaseAdmin(): App {
+  if (adminApp) return adminApp;
+  
+  const config = getRuntimeConfig();
+  const projectId = config.firebase.projectId || config.server.googleCloudProjectId;
+  
+  // Only initialize if we have a project ID
+  if (!projectId) {
+    throw new Error('Firebase Admin configuration is missing project ID');
+  }
+  
+  const firebaseAdminConfig = {
+    credential: applicationDefault(),
+    projectId,
+  };
+  
+  adminApp = getApps().length === 0 ? initializeApp(firebaseAdminConfig) : getApps()[0];
+  return adminApp;
+}
 
-// Initialize Firebase Admin Auth
-export const adminAuth = getAuth(adminApp);
+// Lazy getter for Firebase Admin App
+export function getFirebaseAdminApp(): App {
+  return initializeFirebaseAdmin();
+}
 
-export default adminApp;
+// Lazy getter for Firebase Admin Auth
+export function getFirebaseAdminAuth(): Auth {
+  if (!adminAuth) {
+    const app = getFirebaseAdminApp();
+    adminAuth = getAuth(app);
+  }
+  return adminAuth;
+}
+
+// For backward compatibility
+export { getFirebaseAdminAuth as adminAuth };
+export default getFirebaseAdminApp;

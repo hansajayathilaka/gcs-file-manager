@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+// Function to get runtime config values
+function getRuntimeEnvValue(key: string, defaultValue: string) {
+  return process.env[key] || defaultValue;
+}
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages: ['@google-cloud/storage'],
@@ -24,7 +29,7 @@ const nextConfig: NextConfig = {
           // Add host validation
           {
             key: 'Access-Control-Allow-Origin',
-            value: process.env.ALLOWED_ORIGINS || 'localhost:3000',
+            value: getRuntimeEnvValue('ALLOWED_ORIGINS', 'localhost:3000'),
           },
         ],
       },
@@ -32,7 +37,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '*.run.app', process.env.NEXT_PUBLIC_DOMAIN || 'localhost:3000']
+      allowedOrigins: ['localhost:3000', '*.run.app', getRuntimeEnvValue('NEXT_PUBLIC_DOMAIN', 'localhost:3000')]
     }
   },
   // Optimize images

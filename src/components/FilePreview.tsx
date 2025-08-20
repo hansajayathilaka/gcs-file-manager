@@ -10,7 +10,7 @@ import {
   DocumentIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { FileTreeItem } from '@/types/fileSystem';
 
 interface FilePreviewProps {
@@ -71,7 +71,7 @@ export default function FilePreview({
       // Use the new preview API
       if (!user) throw new Error('Not authenticated');
       
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) throw new Error('Not authenticated');
       
       const token = await currentUser.getIdToken();
@@ -109,7 +109,7 @@ export default function FilePreview({
         try {
           if (!user) throw new Error('Not authenticated');
           
-          const currentUser = auth.currentUser;
+          const currentUser = getFirebaseAuth().currentUser;
           if (!currentUser) throw new Error('Not authenticated');
           
           const token = await currentUser.getIdToken();
@@ -170,7 +170,7 @@ export default function FilePreview({
     if (!file || !user) return;
     
     try {
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) return;
       
       const token = await currentUser.getIdToken();

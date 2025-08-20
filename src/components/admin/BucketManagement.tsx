@@ -42,8 +42,8 @@ const BucketManagement: React.FC = () => {
     if (!currentUser) throw new Error('No authenticated user');
     
     // We need to get the Firebase user to get the token
-    const { auth } = await import('@/lib/firebase');
-    const firebaseUser = auth.currentUser;
+    const { getFirebaseAuth } = await import('@/lib/firebase');
+    const firebaseUser = getFirebaseAuth().currentUser;
     if (!firebaseUser) throw new Error('No Firebase user');
     
     const token = await firebaseUser.getIdToken();

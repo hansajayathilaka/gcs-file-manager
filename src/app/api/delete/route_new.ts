@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import storage from '@/lib/gcs';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getFirebaseAdminAuth } from '@/lib/firebase-admin';
 
 async function verifyAuth(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -10,7 +10,7 @@ async function verifyAuth(request: NextRequest) {
 
   const token = authHeader.substring(7);
   try {
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    const decodedToken = await getFirebaseAdminAuth().verifyIdToken(token);
     return decodedToken;
   } catch (err) {
     throw new Error('Invalid authorization token');

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserProfile, updateUserProfile, getAllUserPermissions, createUserProfile } from '@/lib/database';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getFirebaseAdminAuth } from '@/lib/firebase-admin';
 
 // GET - Get current user profile
 export async function GET(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     let decodedToken;
     
     try {
-      decodedToken = await adminAuth.verifyIdToken(token);
+      decodedToken = await getFirebaseAdminAuth().verifyIdToken(token);
     } catch (tokenError) {
       return NextResponse.json(
         { success: false, error: 'Invalid authorization token' },
@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest) {
     let decodedToken;
     
     try {
-      decodedToken = await adminAuth.verifyIdToken(token);
+      decodedToken = await getFirebaseAdminAuth().verifyIdToken(token);
     } catch (tokenError) {
       return NextResponse.json(
         { success: false, error: 'Invalid authorization token' },

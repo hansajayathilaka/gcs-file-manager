@@ -9,7 +9,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { getFirebaseAuth, getGoogleProvider } from '@/lib/firebase';
 import { User, AuthContextType, UserProfile } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), async (firebaseUser) => {
       if (firebaseUser) {
         const user = convertFirebaseUser(firebaseUser);
         setUser(user);
@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string): Promise<void> => {
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
     } catch (error) {
       setLoading(false);
       throw error;
@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signInWithGoogle = async (): Promise<void> => {
     try {
       setLoading(true);
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(getFirebaseAuth(), getGoogleProvider());
     } catch (error) {
       setLoading(false);
       throw error;
@@ -93,7 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string): Promise<void> => {
     try {
       setLoading(true);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
       
       // Profile will be automatically created by the onAuthStateChanged listener
       // when it detects a new user and calls init-profile API
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async (): Promise<void> => {
     try {
-      await firebaseSignOut(auth);
+      await firebaseSignOut(getFirebaseAuth());
       setUserProfile(null);
     } catch (error) {
       throw error;
@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshProfile = async (): Promise<void> => {
     if (user) {
       try {
-        const firebaseUser = auth.currentUser;
+        const firebaseUser = getFirebaseAuth().currentUser;
         if (firebaseUser) {
           const token = await firebaseUser.getIdToken();
           const response = await fetch('/api/user/profile', {

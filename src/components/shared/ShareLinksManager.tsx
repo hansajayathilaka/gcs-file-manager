@@ -11,7 +11,7 @@ import {
 import { ShareableLink, ShareableLinkListResponse } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import ConfirmationModal from './ConfirmationModal';
 
 interface ShareLinksManagerProps {
@@ -44,7 +44,7 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
     console.log('ShareLinksManager: Loading links for user:', user.uid);
     setLoading(true);
     try {
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) {
         console.log('ShareLinksManager: No current user from auth');
         return;
@@ -87,7 +87,7 @@ const ShareLinksManager: React.FC<ShareLinksManagerProps> = ({ isOpen, onClose }
     setRevokeLoading(true);
 
     try {
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) return;
 
       const token = await currentUser.getIdToken();

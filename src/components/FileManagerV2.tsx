@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useFileOperations } from '@/contexts/FileOperationsContext';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { logger } from '@/lib/logger';
 import BucketSidebar from '@/components/BucketSidebar';
 import Breadcrumb from '@/components/Breadcrumb';
@@ -51,7 +51,7 @@ export default function FileManagerV2({ allowedBuckets }: FileManagerV2Props) {
     if (!user) return {};
     
     try {
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) return {};
       
       const token = await currentUser.getIdToken();

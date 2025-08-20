@@ -1,8 +1,18 @@
-import { getFirestore } from 'firebase-admin/firestore';
-import adminApp from './firebase-admin';
+import { getFirestore as getFirestoreAdmin, Firestore } from 'firebase-admin/firestore';
+import { getFirebaseAdminApp } from './firebase-admin';
 
-// Initialize Firestore Admin
-export const adminDb = getFirestore(adminApp);
+let adminDb: Firestore | null = null;
+
+// Lazy initialization for Firestore Admin
+export function getAdminFirestore(): Firestore {
+  if (!adminDb) {
+    adminDb = getFirestoreAdmin(getFirebaseAdminApp());
+  }
+  return adminDb;
+}
+
+// For backward compatibility
+export { getAdminFirestore as adminDb };
 
 // Collection names (same as client)
 export const COLLECTIONS = {
@@ -13,4 +23,4 @@ export const COLLECTIONS = {
   SHAREABLE_LINKS: 'shareableLinks',
 } as const;
 
-export default adminDb;
+export default getAdminFirestore;

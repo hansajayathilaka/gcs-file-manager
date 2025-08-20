@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import { createUserProfile } from '@/lib/database';
 import { UserRegistrationRequest } from '@/types';
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Create Firebase user
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
       const firebaseUser = userCredential.user;
 
       // Create user profile in database

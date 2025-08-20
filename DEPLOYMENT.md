@@ -239,9 +239,9 @@ The GitHub Actions workflow performs these steps:
 
 2. **Deploy Job** (only on main/master):
    - Authenticate to Google Cloud (Workload Identity or Service Account Key)
-   - Build Docker image
+   - Build Docker image (without environment variables - runtime configuration only)
    - Push image to Artifact Registry
-   - Generate Cloud Run service specification
+   - Generate Cloud Run service specification with runtime environment variables
    - Deploy to Cloud Run
    - Test the deployment
 
@@ -259,6 +259,12 @@ The deployment setup creates these files:
 5. **`next.config.ts`** - Next.js configuration with standalone output
 
 ## Security Features
+
+### Runtime Environment Variables (New!)
+- **Build-time security**: Docker images built without sensitive environment variables
+- **Runtime flexibility**: Environment variables loaded only when container starts
+- **Configuration isolation**: Same image can be deployed to different environments
+- **Lazy initialization**: Firebase and services initialize only when needed, not during build
 
 ### Workload Identity (Recommended)
 - **Keyless authentication**: No service account keys to store or rotate

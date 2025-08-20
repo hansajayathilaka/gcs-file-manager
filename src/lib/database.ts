@@ -1,4 +1,4 @@
-import { adminDb, COLLECTIONS } from './firestore-admin';
+import { getAdminFirestore, COLLECTIONS } from './firestore-admin';
 import { UserProfile, UserRole, ManagedBucket, BucketPermission, AuditLog, ShareableLink } from '@/types';
 import { randomBytes } from 'crypto';
 
@@ -23,7 +23,7 @@ export async function createUserProfile(userData: {
     isActive: true,
   };
 
-  await adminDb.collection(COLLECTIONS.USERS).doc(userData.uid).set(userProfile);
+  await getAdminFirestore().collection(COLLECTIONS.USERS).doc(userData.uid).set(userProfile);
   
   // Log the user creation
   await logAuditEvent({
@@ -39,7 +39,7 @@ export async function createUserProfile(userData: {
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   try {
-    const doc = await adminDb.collection(COLLECTIONS.USERS).doc(uid).get();
+    const doc = await getAdminFirestore().collection(COLLECTIONS.USERS).doc(uid).get();
     if (!doc.exists) {
       return null;
     }
@@ -56,7 +56,7 @@ export async function updateUserProfile(uid: string, updates: Partial<UserProfil
     updatedAt: new Date().toISOString(),
   };
   
-  await adminDb.collection(COLLECTIONS.USERS).doc(uid).update(updateData);
+  await getAdminFirestore().collection(COLLECTIONS.USERS).doc(uid).update(updateData);
   
   // Log the update
   await logAuditEvent({
@@ -70,7 +70,7 @@ export async function updateUserProfile(uid: string, updates: Partial<UserProfil
 
 export async function getAllUsers(): Promise<UserProfile[]> {
   try {
-    const snapshot = await adminDb.collection(COLLECTIONS.USERS).get();
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.USERS).get();
     const users = snapshot.docs.map(doc => doc.data() as UserProfile);
     
     // Fetch detailed permissions for each user
@@ -123,7 +123,7 @@ export async function createManagedBucket(bucketData: {
     allowedUsers: [],
   };
 
-  await adminDb.collection(COLLECTIONS.BUCKETS).doc(bucketData.name).set(bucket);
+  await getAdminFirestore().collection(COLLECTIONS.BUCKETS).doc(bucketData.name).set(bucket);
   
   // Log the bucket creation
   await logAuditEvent({
@@ -139,7 +139,7 @@ export async function createManagedBucket(bucketData: {
 
 export async function getManagedBucket(name: string): Promise<ManagedBucket | null> {
   try {
-    const doc = await adminDb.collection(COLLECTIONS.BUCKETS).doc(name).get();
+    const doc = await getAdminFirestore().collection(COLLECTIONS.BUCKETS).doc(name).get();
     if (!doc.exists) {
       return null;
     }
@@ -152,7 +152,7 @@ export async function getManagedBucket(name: string): Promise<ManagedBucket | nu
 
 export async function getAllManagedBuckets(): Promise<ManagedBucket[]> {
   try {
-    const snapshot = await adminDb.collection(COLLECTIONS.BUCKETS).where('isActive', '==', true).get();
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.BUCKETS).where('isActive', '==', true).get();
     return snapshot.docs.map(doc => doc.data() as ManagedBucket);
   } catch (error) {
     console.error('Error getting all buckets:', error);
@@ -181,7 +181,7 @@ export async function grantBucketPermission(
   
   // Get existing permissions for this user and bucket
   const permissionId = `${userId}_${bucketName}`;
-  const existingDoc = await adminDb.collection(COLLECTIONS.PERMISSIONS).doc(permissionId).get();
+  const existingDoc = await getAdminFirestore().collection(COLLECTIONS.PERMISSIONS).doc(permissionId).get();
   const existingPermissions = existingDoc.exists ? (existingDoc.data() as BucketPermission).permissions : [];
   
   // Merge new permissions with existing ones (avoid duplicates)
@@ -196,7 +196,7 @@ export async function grantBucketPermission(
   };
 
   // Create or update the permission document
-  await adminDb.collection(COLLECTIONS.PERMISSIONS).doc(permissionId).set(permission);
+  await getAdminFirestore().collection(COLLECTIONS.PERMISSIONS).doc(permissionId).set(permission);
 
   // Update user's bucket permissions array
   const userProfile = await getUserProfile(userId);
@@ -214,7 +214,7 @@ export async function grantBucketPermission(
     const allowedUsers = [...bucket.allowedUsers];
     if (!allowedUsers.includes(userId)) {
       allowedUsers.push(userId);
-      await adminDb.collection(COLLECTIONS.BUCKETS).doc(bucketName).update({ allowedUsers });
+      await getAdminFirestore().collection(COLLECTIONS.BUCKETS).doc(bucketName).update({ allowedUsers });
     }
   }
 
@@ -245,7 +245,7 @@ export async function setBucketPermissions(
 
   // Replace the permission document completely
   const permissionId = `${userId}_${bucketName}`;
-  await adminDb.collection(COLLECTIONS.PERMISSIONS).doc(permissionId).set(permission);
+  await getAdminFirestore().collection(COLLECTIONS.PERMISSIONS).doc(permissionId).set(permission);
 
   // Update user's bucket permissions array
   const userProfile = await getUserProfile(userId);
@@ -263,7 +263,7 @@ export async function setBucketPermissions(
     const allowedUsers = [...bucket.allowedUsers];
     if (!allowedUsers.includes(userId)) {
       allowedUsers.push(userId);
-      await adminDb.collection(COLLECTIONS.BUCKETS).doc(bucketName).update({ allowedUsers });
+      await getAdminFirestore().collection(COLLECTIONS.BUCKETS).doc(bucketName).update({ allowedUsers });
     }
   }
 
@@ -284,7 +284,7 @@ export async function revokeBucketPermission(
   const permissionId = `${userId}_${bucketName}`;
   
   // Delete the permission document
-  await adminDb.collection(COLLECTIONS.PERMISSIONS).doc(permissionId).delete();
+  await getAdminFirestore().collection(COLLECTIONS.PERMISSIONS).doc(permissionId).delete();
 
   // Update user's bucket permissions array
   const userProfile = await getUserProfile(userId);
@@ -297,7 +297,7 @@ export async function revokeBucketPermission(
   const bucket = await getManagedBucket(bucketName);
   if (bucket) {
     const allowedUsers = bucket.allowedUsers.filter(user => user !== userId);
-    await adminDb.collection(COLLECTIONS.BUCKETS).doc(bucketName).update({ allowedUsers });
+    await getAdminFirestore().collection(COLLECTIONS.BUCKETS).doc(bucketName).update({ allowedUsers });
   }
 
   // Log the permission revocation
@@ -313,7 +313,7 @@ export async function revokeBucketPermission(
 export async function getUserPermissions(userId: string, bucketName: string): Promise<BucketPermission | null> {
   try {
     const permissionId = `${userId}_${bucketName}`;
-    const doc = await adminDb.collection(COLLECTIONS.PERMISSIONS).doc(permissionId).get();
+    const doc = await getAdminFirestore().collection(COLLECTIONS.PERMISSIONS).doc(permissionId).get();
     if (!doc.exists) {
       return null;
     }
@@ -326,7 +326,7 @@ export async function getUserPermissions(userId: string, bucketName: string): Pr
 
 export async function getAllUserPermissions(userId: string): Promise<BucketPermission[]> {
   try {
-    const snapshot = await adminDb.collection(COLLECTIONS.PERMISSIONS)
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.PERMISSIONS)
       .where('userId', '==', userId)
       .get();
     return snapshot.docs.map(doc => doc.data() as BucketPermission);
@@ -352,7 +352,7 @@ export async function logAuditEvent(eventData: {
       timestamp: new Date().toISOString(),
     };
 
-    const docRef = await adminDb.collection(COLLECTIONS.AUDIT_LOGS).add(auditLog);
+    const docRef = await getAdminFirestore().collection(COLLECTIONS.AUDIT_LOGS).add(auditLog);
     await docRef.update({ id: docRef.id });
   } catch (error) {
     console.error('Error logging audit event:', error);
@@ -370,7 +370,7 @@ export async function getAuditLogs(
   limit: number = 100
 ): Promise<AuditLog[]> {
   try {
-    let query = adminDb.collection(COLLECTIONS.AUDIT_LOGS).orderBy('timestamp', 'desc');
+    let query = getAdminFirestore().collection(COLLECTIONS.AUDIT_LOGS).orderBy('timestamp', 'desc');
 
     if (filters?.userId) {
       query = query.where('userId', '==', filters.userId);
@@ -445,7 +445,7 @@ export async function createShareableLink(linkData: {
     shareableLink.description = linkData.description;
   }
 
-  const docRef = await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS).add(shareableLink);
+  const docRef = await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS).add(shareableLink);
   // Update the document with its ID
   await docRef.update({ id: docRef.id });
   
@@ -485,7 +485,7 @@ export async function createShareableLink(linkData: {
 
 export async function getShareableLink(token: string): Promise<ShareableLink | null> {
   try {
-    const snapshot = await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS)
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS)
       .where('token', '==', token)
       .where('isRevoked', '==', false)
       .limit(1)
@@ -509,7 +509,7 @@ export async function getShareableLink(token: string): Promise<ShareableLink | n
 
 export async function getShareableLinkById(id: string): Promise<ShareableLink | null> {
   try {
-    const doc = await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS).doc(id).get();
+    const doc = await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS).doc(id).get();
     if (!doc.exists) {
       return null;
     }
@@ -526,7 +526,7 @@ export async function getShareableLinkById(id: string): Promise<ShareableLink | 
 
 export async function getUserShareableLinks(userId: string): Promise<ShareableLink[]> {
   try {
-    const snapshot = await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS)
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS)
       .where('createdBy', '==', userId)
       .orderBy('createdAt', 'desc')
       .get();
@@ -546,7 +546,7 @@ export async function getUserShareableLinks(userId: string): Promise<ShareableLi
 
 export async function incrementLinkAccess(token: string): Promise<boolean> {
   try {
-    const snapshot = await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS)
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS)
       .where('token', '==', token)
       .limit(1)
       .get();
@@ -587,7 +587,7 @@ export async function incrementLinkAccess(token: string): Promise<boolean> {
 export async function revokeShareableLink(linkId: string, revokedBy: string): Promise<void> {
   const now = new Date().toISOString();
   
-  await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS).doc(linkId).update({
+  await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS).doc(linkId).update({
     isRevoked: true,
     revokedAt: now,
     revokedBy,
@@ -606,12 +606,12 @@ export async function revokeShareableLink(linkId: string, revokedBy: string): Pr
 export async function cleanupExpiredLinks(): Promise<number> {
   try {
     const now = new Date().toISOString();
-    const snapshot = await adminDb.collection(COLLECTIONS.SHAREABLE_LINKS)
+    const snapshot = await getAdminFirestore().collection(COLLECTIONS.SHAREABLE_LINKS)
       .where('expiresAt', '<', now)
       .where('isRevoked', '==', false)
       .get();
     
-    const batch = adminDb.batch();
+    const batch = getAdminFirestore().batch();
     let count = 0;
     
     snapshot.docs.forEach(doc => {

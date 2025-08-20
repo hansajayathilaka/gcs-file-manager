@@ -2,6 +2,8 @@
  * Centralized logging utility for the application
  */
 
+import { getRuntimeConfig } from './runtime-config';
+
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogContext {
@@ -13,8 +15,13 @@ interface LogContext {
 }
 
 class Logger {
-  private isDevelopment = process.env.NODE_ENV === 'development';
-  private isProduction = process.env.NODE_ENV === 'production';
+  private get isDevelopment() {
+    return getRuntimeConfig().nodeEnv === 'development';
+  }
+  
+  private get isProduction() {
+    return getRuntimeConfig().nodeEnv === 'production';
+  }
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {
     const timestamp = new Date().toISOString();

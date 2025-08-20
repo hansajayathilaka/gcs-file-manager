@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserProfile, createUserProfile } from '@/lib/database';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getFirebaseAdminAuth } from '@/lib/firebase-admin';
 
 // POST - Initialize user profile if it doesn't exist
 export async function POST(request: NextRequest) {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     let decodedToken;
     
     try {
-      decodedToken = await adminAuth.verifyIdToken(token);
+      decodedToken = await getFirebaseAdminAuth().verifyIdToken(token);
     } catch (tokenError) {
       return NextResponse.json(
         { success: false, error: 'Invalid authorization token' },

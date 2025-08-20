@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { adminAuth } from './firebase-admin';
+import { getFirebaseAdminAuth } from './firebase-admin';
 import { getUserProfile, hasUserBucketAccess, isUserAdmin, getAllUserPermissions } from './database';
 import { UserProfile, UserRole } from '@/types';
 
@@ -40,7 +40,7 @@ export async function verifyAuth(request: NextRequest): Promise<AuthenticatedUse
 
   try {
     // Verify the Firebase ID token
-    const decodedToken = await adminAuth.verifyIdToken(token);
+    const decodedToken = await getFirebaseAdminAuth().verifyIdToken(token);
     
     // Get user profile from database
     const profile = await getUserProfile(decodedToken.uid);

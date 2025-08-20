@@ -6,7 +6,7 @@ import { ShareableLinkRequest, ShareableLinkResponse } from '@/types';
 import { FileTreeItem } from '@/types/fileSystem';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 interface ShareDialogProps {
   isOpen: boolean;
@@ -30,7 +30,7 @@ const ShareDialog: React.FC<ShareDialogProps> = ({ isOpen, onClose, file, bucket
 
     setLoading(true);
     try {
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) {
         throw new Error('Not authenticated');
       }

@@ -1,8 +1,18 @@
-import { getFirestore } from 'firebase/firestore';
-import app from './firebase';
+import { getFirestore as getFirestoreService, Firestore } from 'firebase/firestore';
+import { getFirebaseApp } from './firebase';
 
-// Initialize Firestore
-export const db = getFirestore(app);
+let db: Firestore | null = null;
+
+// Lazy initialization for Firestore
+export function getFirestore(): Firestore {
+  if (!db) {
+    db = getFirestoreService(getFirebaseApp());
+  }
+  return db;
+}
+
+// For backward compatibility
+export { getFirestore as db };
 
 // Collection names
 export const COLLECTIONS = {
@@ -13,4 +23,4 @@ export const COLLECTIONS = {
   SHAREABLE_LINKS: 'shareableLinks',
 } as const;
 
-export default db;
+export default getFirestore;

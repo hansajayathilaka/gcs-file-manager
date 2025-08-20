@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 export const useAllowedBuckets = () => {
   const { user } = useAuth();
@@ -12,7 +12,7 @@ export const useAllowedBuckets = () => {
     if (!user) return {};
     
     try {
-      const currentUser = auth.currentUser;
+      const currentUser = getFirebaseAuth().currentUser;
       if (!currentUser) return {};
       
       const token = await currentUser.getIdToken();

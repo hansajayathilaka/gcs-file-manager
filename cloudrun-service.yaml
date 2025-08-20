@@ -36,6 +36,9 @@ spec:
         env:
         - name: NODE_ENV
           value: "production"
+        # Runtime Environment Variables - These are passed to the container at startup
+        # NOT during build time. Firebase and other services initialize lazily when needed.
+        
         # Firebase Configuration (Public)
         - name: NEXT_PUBLIC_FIREBASE_API_KEY
           value: "FIREBASE_API_KEY_PLACEHOLDER"
@@ -49,15 +52,18 @@ spec:
           value: "FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER"
         - name: NEXT_PUBLIC_FIREBASE_APP_ID
           value: "FIREBASE_APP_ID_PLACEHOLDER"
-        # Firebase will use Application Default Credentials (no key needed)
+          
+        # Firebase Admin uses Application Default Credentials (no key needed)
         # Google Cloud Storage
         - name: GOOGLE_CLOUD_PROJECT_ID
           value: "GCP_PROJECT_ID_PLACEHOLDER"
+          
         # Next Auth
         - name: NEXTAUTH_SECRET
           value: "NEXTAUTH_SECRET_PLACEHOLDER"
         - name: NEXTAUTH_URL
           value: "NEXTAUTH_URL_PLACEHOLDER"
+          
         # Allowed hosts configuration
         - name: ALLOWED_ORIGINS
           value: "ALLOWED_ORIGINS_PLACEHOLDER"
