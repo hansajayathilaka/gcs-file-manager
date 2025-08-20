@@ -13,8 +13,22 @@ function initializeFirebase(): FirebaseApp {
   const config = getPublicRuntimeConfig();
   const firebaseConfig = config.firebase;
   
+  // Debug logging for production
+  if (typeof window !== 'undefined') {
+    console.log('Firebase config debug:', {
+      hasApiKey: !!firebaseConfig.apiKey,
+      hasProjectId: !!firebaseConfig.projectId,
+      hasAuthDomain: !!firebaseConfig.authDomain,
+      hasStorageBucket: !!firebaseConfig.storageBucket,
+      hasMessagingSenderId: !!firebaseConfig.messagingSenderId,
+      hasAppId: !!firebaseConfig.appId,
+      config: firebaseConfig
+    });
+  }
+  
   // Only initialize if we have valid config
   if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.error('Firebase config validation failed:', firebaseConfig);
     throw new Error('Firebase configuration is missing required fields');
   }
   
