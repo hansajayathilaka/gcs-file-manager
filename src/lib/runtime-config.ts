@@ -1,26 +1,12 @@
 // Runtime configuration utility
-// This ensures environment variables are read at runtime, not build time
+// Server-side only - follows Next.js best practices
 
-// Function to get runtime environment variables from window object or process.env
-function getRuntimeEnv(key: string): string | undefined {
-  if (typeof window !== 'undefined') {
-    // Client-side: get from window.__ENV__ or process.env
-    return (window as any).__ENV__?.[key] || process.env[key];
-  }
-  // Server-side: get from process.env
-  return process.env[key];
-}
-
-export function getRuntimeConfig() {
+export function getServerConfig() {
   return {
-    // Firebase client config (public)
+    // Firebase server config (for Admin SDK)
     firebase: {
-      apiKey: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_API_KEY'),
-      authDomain: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
-      projectId: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
-      storageBucket: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
-      messagingSenderId: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-      appId: getRuntimeEnv('NEXT_PUBLIC_FIREBASE_APP_ID'),
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
     },
     
     // Server-side config (private)
@@ -29,7 +15,7 @@ export function getRuntimeConfig() {
       nextAuthSecret: process.env.NEXTAUTH_SECRET,
       nextAuthUrl: process.env.NEXTAUTH_URL,
       allowedOrigins: process.env.ALLOWED_ORIGINS,
-      nextPublicDomain: process.env.NEXT_PUBLIC_DOMAIN,
+      publicDomain: process.env.PUBLIC_DOMAIN,
     },
     
     // Environment info
@@ -37,11 +23,10 @@ export function getRuntimeConfig() {
   };
 }
 
-// For client-side usage, only return public config
-export function getPublicRuntimeConfig() {
-  const config = getRuntimeConfig();
+// Client config should be provided via API endpoint
+// This ensures proper separation of concerns and follows Next.js patterns
+export function getPublicConfig() {
   return {
-    firebase: config.firebase,
-    nodeEnv: config.nodeEnv,
+    nodeEnv: process.env.NODE_ENV,
   };
 }
