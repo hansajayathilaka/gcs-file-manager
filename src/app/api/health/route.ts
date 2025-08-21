@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRuntimeConfig } from '@/lib/runtime-config';
+import { getServerConfig } from '@/lib/runtime-config';
 
 export async function GET(request: NextRequest) {
-  const config = getRuntimeConfig();
+  const config = getServerConfig();
   
   return NextResponse.json(
     {

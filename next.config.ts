@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3000', '*.run.app', getRuntimeEnvValue('NEXT_PUBLIC_DOMAIN', 'localhost:3000')]
+      allowedOrigins: ['localhost:3000', '*.run.app', getRuntimeEnvValue('PUBLIC_DOMAIN', 'localhost:3000')]
     }
   },
   // Optimize images

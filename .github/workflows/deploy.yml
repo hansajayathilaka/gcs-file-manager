@@ -2,7 +2,7 @@ name: Build and Deploy to Cloud Run
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, dev ]
   workflow_dispatch:
 
 env:
@@ -42,8 +42,14 @@ jobs:
 
       - name: Build and Push Container
         run: |-
-          # Build without environment variables - they will be provided at runtime
+          # Build with Firebase environment variables baked in
           docker build \
+            --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="${{ secrets.FIREBASE_API_KEY }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="${{ vars.FIREBASE_PROJECT_ID }}.firebaseapp.com" \
+            --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="${{ vars.FIREBASE_PROJECT_ID }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="${{ vars.FIREBASE_STORAGE_BUCKET }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="${{ vars.FIREBASE_MESSAGING_SENDER_ID }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_APP_ID="${{ vars.FIREBASE_APP_ID }}" \
             -t "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" ./
           docker push "${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}"
 
@@ -58,19 +64,15 @@ jobs:
           # Update service metadata
           sed -i "s|name: filemanager|name: ${{ env.SERVICE }}|g" cloudrun-service-updated.yaml
           sed -i "s|cloud.googleapis.com/location: asia-southeast1|cloud.googleapis.com/location: ${{ env.REGION }}|g" cloudrun-service-updated.yaml
-          # Update runtime environment variables (passed to container at runtime, not build time)
-          sed -i "s|FIREBASE_API_KEY_PLACEHOLDER|${{ secrets.FIREBASE_API_KEY }}|g" cloudrun-service-updated.yaml
-          sed -i "s|FIREBASE_AUTH_DOMAIN_PLACEHOLDER|${{ vars.FIREBASE_AUTH_DOMAIN }}|g" cloudrun-service-updated.yaml
+          # Update server-side runtime environment variables (for server/admin operations)
           sed -i "s|FIREBASE_PROJECT_ID_PLACEHOLDER|${{ vars.FIREBASE_PROJECT_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|FIREBASE_STORAGE_BUCKET_PLACEHOLDER|${{ vars.FIREBASE_STORAGE_BUCKET }}|g" cloudrun-service-updated.yaml
-          sed -i "s|FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER|${{ vars.FIREBASE_MESSAGING_SENDER_ID }}|g" cloudrun-service-updated.yaml
-          sed -i "s|FIREBASE_APP_ID_PLACEHOLDER|${{ vars.FIREBASE_APP_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|SERVICE_ACCOUNT_EMAIL_PLACEHOLDER|${{ env.SERVICE_ACCOUNT }}|g" cloudrun-service-updated.yaml
           sed -i "s|GCP_PROJECT_ID_PLACEHOLDER|${{ env.PROJECT_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_SECRET_PLACEHOLDER|${{ secrets.NEXTAUTH_SECRET }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_URL_PLACEHOLDER|${{ vars.NEXTAUTH_URL }}|g" cloudrun-service-updated.yaml
           sed -i "s|ALLOWED_ORIGINS_PLACEHOLDER|${{ vars.ALLOWED_ORIGINS }}|g" cloudrun-service-updated.yaml
-          sed -i "s|NEXT_PUBLIC_DOMAIN_PLACEHOLDER|${{ vars.NEXT_PUBLIC_DOMAIN }}|g" cloudrun-service-updated.yaml
+          sed -i "s|PUBLIC_DOMAIN_PLACEHOLDER|${{ vars.PUBLIC_DOMAIN }}|g" cloudrun-service-updated.yaml
           
           # Log the final spec file for debugging
           echo "=== Final Cloud Run Service Spec ==="
