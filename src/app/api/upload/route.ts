@@ -4,6 +4,12 @@ import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
 import { validateBucketName, validatePath, validateBulkUpload, sanitizeString } from '@/lib/validation';
 import { logger } from '@/lib/logger';
 
+interface UploadFile {
+  name: string;
+  type: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
 export const POST = withAuth(async (request: NextRequest, user) => {
   let bucketName = '';
   try {
@@ -31,12 +37,12 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     }
 
     // Get all files from the form data
-    const files: any[] = [];
+    const files: UploadFile[] = [];
     const filePaths: string[] = [];
     
     for (const [key, value] of formData.entries()) {
       if (key.startsWith('file-') && value && typeof value === 'object' && 'name' in value && 'type' in value && 'arrayBuffer' in value) {
-        files.push(value as any);
+        files.push(value as UploadFile);
         const filePathKey = key.replace('file-', 'path-');
         const relativePath = sanitizeString(formData.get(filePathKey) as string || '');
         
