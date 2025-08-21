@@ -16,7 +16,8 @@
       "Bash(docker build:*)",
       "Bash(echo:*)",
       "Bash(grep:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

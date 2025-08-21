@@ -1,6 +1,6 @@
 import { initializeApp, getApps, applicationDefault, App } from 'firebase-admin/app';
 import { getAuth, Auth } from 'firebase-admin/auth';
-import { getRuntimeConfig } from './runtime-config';
+import { getServerConfig } from './runtime-config';
 
 let adminApp: App | null = null;
 let adminAuth: Auth | null = null;
@@ -9,7 +9,7 @@ let adminAuth: Auth | null = null;
 function initializeFirebaseAdmin(): App {
   if (adminApp) return adminApp;
   
-  const config = getRuntimeConfig();
+  const config = getServerConfig();
   const projectId = config.firebase.projectId || config.server.googleCloudProjectId;
   
   // Only initialize if we have a project ID

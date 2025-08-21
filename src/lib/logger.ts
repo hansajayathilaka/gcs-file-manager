@@ -2,7 +2,7 @@
  * Centralized logging utility for the application
  */
 
-import { getRuntimeConfig } from './runtime-config';
+import { getServerConfig } from './runtime-config';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -16,11 +16,11 @@ interface LogContext {
 
 class Logger {
   private get isDevelopment() {
-    return getRuntimeConfig().nodeEnv === 'development';
+    return getServerConfig().nodeEnv === 'development';
   }
   
   private get isProduction() {
-    return getRuntimeConfig().nodeEnv === 'production';
+    return getServerConfig().nodeEnv === 'production';
   }
 
   private formatMessage(level: LogLevel, message: string, context?: LogContext): string {

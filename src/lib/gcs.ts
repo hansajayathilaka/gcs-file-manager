@@ -1,7 +1,7 @@
 import { Storage } from '@google-cloud/storage';
-import { getRuntimeConfig } from './runtime-config';
+import { getServerConfig } from './runtime-config';
 
-const config = getRuntimeConfig();
+const config = getServerConfig();
 const projectId = config.server.googleCloudProjectId;
 
 // Initialize Google Cloud Storage
