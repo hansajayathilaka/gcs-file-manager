@@ -31,14 +31,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy runtime environment injection script and startup script
-COPY --from=builder /app/scripts/inject-runtime-env.js ./scripts/inject-runtime-env.js
-COPY --from=builder /app/scripts/start.sh ./scripts/start.sh
-
-# Make start script executable and ensure proper permissions
-RUN chmod +x ./scripts/start.sh && \
-    chown -R nextjs:nodejs ./scripts/ && \
-    chown -R nextjs:nodejs ./.next/static && \
+# Ensure proper permissions
+RUN chown -R nextjs:nodejs ./.next/static && \
     chown -R nextjs:nodejs ./public
 
 # Switch to non-root user
@@ -51,5 +45,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application with runtime environment injection
-CMD ["./scripts/start.sh"]
+# Start the application directly
+CMD ["node", "server.js"]

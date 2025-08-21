@@ -61,6 +61,10 @@ jobs:
           # Update server-side runtime environment variables
           sed -i "s|FIREBASE_PROJECT_ID_PLACEHOLDER|${{ vars.FIREBASE_PROJECT_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|FIREBASE_STORAGE_BUCKET_PLACEHOLDER|${{ vars.FIREBASE_STORAGE_BUCKET }}|g" cloudrun-service-updated.yaml
+          # Update Firebase client config for API endpoint
+          sed -i "s|FIREBASE_API_KEY_PLACEHOLDER|${{ secrets.FIREBASE_API_KEY }}|g" cloudrun-service-updated.yaml
+          sed -i "s|FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER|${{ vars.FIREBASE_MESSAGING_SENDER_ID }}|g" cloudrun-service-updated.yaml
+          sed -i "s|FIREBASE_APP_ID_PLACEHOLDER|${{ vars.FIREBASE_APP_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|SERVICE_ACCOUNT_EMAIL_PLACEHOLDER|${{ env.SERVICE_ACCOUNT }}|g" cloudrun-service-updated.yaml
           sed -i "s|GCP_PROJECT_ID_PLACEHOLDER|${{ env.PROJECT_ID }}|g" cloudrun-service-updated.yaml
           sed -i "s|NEXTAUTH_SECRET_PLACEHOLDER|${{ secrets.NEXTAUTH_SECRET }}|g" cloudrun-service-updated.yaml

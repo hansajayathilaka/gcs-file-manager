@@ -38,12 +38,19 @@ spec:
         - name: NODE_ENV
           value: "production"
         # Server-side Runtime Environment Variables
-        # Firebase Configuration (Server-side only - use Firebase Admin SDK)
+        # Firebase Configuration (Server-side Admin SDK)
         - name: FIREBASE_PROJECT_ID
           value: "FIREBASE_PROJECT_ID_PLACEHOLDER"
         - name: FIREBASE_STORAGE_BUCKET
           value: "FIREBASE_STORAGE_BUCKET_PLACEHOLDER"
-        # Client-side Firebase config will be fetched via API endpoint
+        
+        # Firebase Client Configuration (for API endpoint)
+        - name: FIREBASE_API_KEY
+          value: "FIREBASE_API_KEY_PLACEHOLDER"
+        - name: FIREBASE_MESSAGING_SENDER_ID
+          value: "FIREBASE_MESSAGING_SENDER_ID_PLACEHOLDER"
+        - name: FIREBASE_APP_ID
+          value: "FIREBASE_APP_ID_PLACEHOLDER"
           
         # Firebase Admin uses Application Default Credentials (no key needed)
         # Google Cloud Storage
