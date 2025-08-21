@@ -1,13 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
 import storage from '@/lib/gcs';
 import { withAuth, requireBucketPermission } from '@/lib/auth-middleware';
-import { validateBucketName, validatePath, validateBulkUpload, sanitizeString } from '@/lib/validation';
+import { validateBucketName, validatePath, sanitizeString, ALLOWED_FILE_TYPES, MAX_FILE_SIZE, MAX_TOTAL_SIZE, validateFileName, ValidationResult } from '@/lib/validation';
 import { logger } from '@/lib/logger';
 
 interface UploadFile {
   name: string;
   type: string;
+  size: number;
   arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+function validateUploadFile(file: UploadFile): ValidationResult {
+  if (!file || typeof file !== 'object') {
+    return { isValid: false, error: 'Invalid file object' };
+  }
+  
+  if (file.size === 0) {
+    return { isValid: false, error: 'File is empty' };
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    return { 
+      isValid: false, 
+      error: `File size exceeds maximum allowed size of ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB` 
+    };
+  }
+  
+  if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+    return { 
+      isValid: false, 
+      error: `File type '${file.type}' is not allowed. Allowed types: ${ALLOWED_FILE_TYPES.slice(0, 5).join(', ')}...` 
+    };
+  }
+  
+  const nameValidation = validateFileName(file.name);
+  if (!nameValidation.isValid) {
+    return nameValidation;
+  }
+  
+  return { isValid: true };
+}
+
+function validateBulkUploadFiles(files: UploadFile[]): ValidationResult {
+  if (!Array.isArray(files)) {
+    return { isValid: false, error: 'Files must be an array' };
+  }
+  
+  if (files.length === 0) {
+    return { isValid: false, error: 'No files provided' };
+  }
+  
+  if (files.length > 50) {
+    return { isValid: false, error: 'Too many files (maximum 50 files per upload)' };
+  }
+  
+  let totalSize = 0;
+  const invalidFiles: string[] = [];
+  
+  for (const file of files) {
+    const fileValidation = validateUploadFile(file);
+    if (!fileValidation.isValid) {
+      invalidFiles.push(`${file.name}: ${fileValidation.error}`);
+      continue;
+    }
+    
+    totalSize += file.size;
+  }
+  
+  if (invalidFiles.length > 0) {
+    return { 
+      isValid: false, 
+      error: 'Invalid files detected', 
+      details: invalidFiles 
+    };
+  }
+  
+  if (totalSize > MAX_TOTAL_SIZE) {
+    return { 
+      isValid: false, 
+      error: `Total file size exceeds maximum allowed size of ${Math.round(MAX_TOTAL_SIZE / 1024 / 1024)}MB` 
+    };
+  }
+  
+  return { isValid: true };
 }
 
 export const POST = withAuth(async (request: NextRequest, user) => {
@@ -41,7 +117,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     const filePaths: string[] = [];
     
     for (const [key, value] of formData.entries()) {
-      if (key.startsWith('file-') && value && typeof value === 'object' && 'name' in value && 'type' in value && 'arrayBuffer' in value) {
+      if (key.startsWith('file-') && value && typeof value === 'object' && 'name' in value && 'type' in value && 'size' in value && 'arrayBuffer' in value) {
         files.push(value as UploadFile);
         const filePathKey = key.replace('file-', 'path-');
         const relativePath = sanitizeString(formData.get(filePathKey) as string || '');
@@ -60,7 +136,7 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     }
 
     // Validate bulk upload
-    const uploadValidation = validateBulkUpload(files);
+    const uploadValidation = validateBulkUploadFiles(files);
     if (!uploadValidation.isValid) {
       return NextResponse.json(
         { success: false, error: uploadValidation.error, details: uploadValidation.details },
