@@ -31,12 +31,12 @@ export const POST = withAuth(async (request: NextRequest, user) => {
     }
 
     // Get all files from the form data
-    const files: File[] = [];
+    const files: any[] = [];
     const filePaths: string[] = [];
     
     for (const [key, value] of formData.entries()) {
-      if (key.startsWith('file-') && value instanceof File) {
-        files.push(value);
+      if (key.startsWith('file-') && value && typeof value === 'object' && 'name' in value && 'type' in value && 'arrayBuffer' in value) {
+        files.push(value as any);
         const filePathKey = key.replace('file-', 'path-');
         const relativePath = sanitizeString(formData.get(filePathKey) as string || '');
         
